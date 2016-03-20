@@ -981,3 +981,7 @@ config ICNSS_QMI
 	  over QMI channel.
 
 source "drivers/soc/qcom/wcnss/Kconfig"
+
+config STATE_NOTIFIER
+    bool "State Notifier"
+	default y
