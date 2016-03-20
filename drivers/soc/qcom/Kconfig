@@ -998,3 +998,7 @@ config QPNP_HAPTIC
 	  on the touch screen.  It uses the Android timed-output framework.
 
 source "drivers/soc/qcom/wcnss/Kconfig"
+
+config STATE_NOTIFIER
+    bool "State Notifier"
+	default y
