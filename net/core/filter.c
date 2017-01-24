@@ -2659,7 +2659,7 @@ static const struct bpf_func_proto bpf_get_socket_uid_proto = {
 };
 
 static const struct bpf_func_proto *
-sk_filter_func_proto(enum bpf_func_id func_id)
+bpf_base_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
 	case BPF_FUNC_map_lookup_elem:
@@ -2689,6 +2689,17 @@ sk_filter_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_current_uid_gid_proto;
 	default:
 		return NULL;
+	}
+}
+
+static const struct bpf_func_proto *
+sk_filter_func_proto(enum bpf_func_id func_id)
+{
+	switch (func_id) {
+	case BPF_FUNC_skb_load_bytes:
+		return &bpf_skb_load_bytes_proto;
+	default:
+		return bpf_base_func_proto(func_id);
 	}
 }
 
@@ -2747,7 +2758,7 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_skb_under_cgroup:
 		return &bpf_skb_under_cgroup_proto;
 	default:
-		return sk_filter_func_proto(func_id);
+		return bpf_base_func_proto(func_id);
 	}
 }
 
@@ -2762,7 +2773,7 @@ xdp_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_xdp_adjust_head:
 		return &bpf_xdp_adjust_head_proto;
 	default:
-		return sk_filter_func_proto(func_id);
+		return bpf_base_func_proto(func_id);
 	}
 }
 
@@ -2773,7 +2784,7 @@ cg_skb_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_skb_load_bytes:
 		return &bpf_skb_load_bytes_proto;
 	default:
-		return sk_filter_func_proto(func_id);
+		return bpf_base_func_proto(func_id);
 	}
 }
 
@@ -2800,7 +2811,7 @@ lwt_inout_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_skb_under_cgroup:
 		return &bpf_skb_under_cgroup_proto;
 	default:
-		return sk_filter_func_proto(func_id);
+		return bpf_base_func_proto(func_id);
 	}
 }
 
@@ -3061,10 +3072,10 @@ void bpf_warn_invalid_xdp_action(u32 act)
 }
 EXPORT_SYMBOL_GPL(bpf_warn_invalid_xdp_action);
 
-static u32 sk_filter_convert_ctx_access(enum bpf_access_type type,
-					const struct bpf_insn *si,
-					struct bpf_insn *insn_buf,
-					struct bpf_prog *prog)
+static u32 bpf_convert_ctx_access(enum bpf_access_type type,
+				  const struct bpf_insn *si,
+				  struct bpf_insn *insn_buf,
+				  struct bpf_prog *prog)
 {
 	struct bpf_insn *insn = insn_buf;
 	int off;
@@ -3288,7 +3299,7 @@ static u32 tc_cls_act_convert_ctx_access(enum bpf_access_type type,
 				      offsetof(struct net_device, ifindex));
 		break;
 	default:
-		return sk_filter_convert_ctx_access(type, si, insn_buf, prog);
+		return bpf_convert_ctx_access(type, si, insn_buf, prog);
 	}
 
 	return insn - insn_buf;
@@ -3320,7 +3331,7 @@ static u32 xdp_convert_ctx_access(enum bpf_access_type type,
 static const struct bpf_verifier_ops sk_filter_ops = {
 	.get_func_proto		= sk_filter_func_proto,
 	.is_valid_access	= sk_filter_is_valid_access,
-	.convert_ctx_access	= sk_filter_convert_ctx_access,
+	.convert_ctx_access	= bpf_convert_ctx_access,
 };
 
 static const struct bpf_verifier_ops tc_cls_act_ops = {
@@ -3339,24 +3350,24 @@ static const struct bpf_verifier_ops xdp_ops = {
 static const struct bpf_verifier_ops cg_skb_ops = {
 	.get_func_proto		= cg_skb_func_proto,
 	.is_valid_access	= sk_filter_is_valid_access,
-	.convert_ctx_access	= sk_filter_convert_ctx_access,
+	.convert_ctx_access	= bpf_convert_ctx_access,
 };
 
 static const struct bpf_verifier_ops lwt_inout_ops = {
 	.get_func_proto		= lwt_inout_func_proto,
 	.is_valid_access	= lwt_is_valid_access,
-	.convert_ctx_access	= sk_filter_convert_ctx_access,
+	.convert_ctx_access	= bpf_convert_ctx_access,
 };
 
 static const struct bpf_verifier_ops lwt_xmit_ops = {
 	.get_func_proto		= lwt_xmit_func_proto,
 	.is_valid_access	= lwt_is_valid_access,
-	.convert_ctx_access	= sk_filter_convert_ctx_access,
+	.convert_ctx_access	= bpf_convert_ctx_access,
 	.gen_prologue		= tc_cls_act_prologue,
 };
 
 static const struct bpf_verifier_ops cg_sock_ops = {
-	.get_func_proto		= sk_filter_func_proto,
+	.get_func_proto		= bpf_base_func_proto,
 	.is_valid_access	= sock_filter_is_valid_access,
 	.convert_ctx_access	= sock_filter_convert_ctx_access,
 };
