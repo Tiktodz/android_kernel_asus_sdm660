@@ -547,6 +547,7 @@ static void sync_rcu_exp_select_cpus(void)
 			continue;
 		}
 		sync_rcu_exp_select_cpus_queue_work(rnp);
+		queue_work_on(rnp->grplo, rcu_par_gp_wq, &rnp->rew.rew_work);
 		rnp->exp_need_flush = true;
 	}
 
