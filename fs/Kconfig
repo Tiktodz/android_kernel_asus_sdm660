@@ -14,6 +14,13 @@ config DYNAMIC_FSYNC
 	help
 	An experimental file sync control using new power_suspend driver
 
+config VALIDATE_FS_PARSER
+	bool "Validate filesystem parameter description"
+	default y
+	help
+	  Enable this to perform validation of the parameter description for a
+	  filesystem when it is registered.
+
 if BLOCK
 
 config FS_IOMAP
