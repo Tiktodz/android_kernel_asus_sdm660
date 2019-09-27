@@ -544,6 +544,12 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 	int rc = 0;
 	u8 raw_type[2], type, subtype;
 
+	if (!pdev || !pdev->dev.of_node) {
+		dev_err(&pdev->dev, "%s: device tree node not found\n",
+			__func__);
+		return -EINVAL;
+	}
+
 	node = pdev->dev.of_node;
 
 	chip = kzalloc(sizeof(struct qpnp_tm_chip), GFP_KERNEL);
