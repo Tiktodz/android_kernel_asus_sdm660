@@ -220,10 +220,11 @@ struct jit_context {
 /* Maximum number of bytes emitted while JITing one eBPF insn */
 #define BPF_MAX_INSN_SIZE	128
 #define BPF_INSN_SAFETY		64
-/* number of bytes emit_call() needs to generate call instruction */
-#define X86_CALL_SIZE		5
 
-#define PROLOGUE_SIZE		20
+/* Number of bytes emit_patch() needs to generate instructions */
+#define X86_PATCH_SIZE		5
+
+#define PROLOGUE_SIZE		25
 
 /*
  * Emit x86-64 prologue code for BPF program and check its size.
@@ -232,8 +233,13 @@ struct jit_context {
 static void emit_prologue(u8 **pprog, u32 stack_depth, bool ebpf_from_cbpf)
 {
 	u8 *prog = *pprog;
-	int cnt = 0;
+	int cnt = X86_PATCH_SIZE;
 
+	/* BPF trampoline can be made to work without these nops,
+	 * but let's waste 5 bytes for now and optimize later
+	 */
+	memcpy(prog, ideal_nops[NOP_ATOMIC5], cnt);
+	prog += cnt;
 	EMIT1(0x55);             /* push rbp */
 	EMIT3(0x48, 0x89, 0xE5); /* mov rbp, rsp */
 	/* sub rsp, rounded_stack_depth */
@@ -492,64 +498,91 @@ static void emit_stx(u8 **pprog, u32 size, u32 dst_reg, u32 src_reg, int off)
 	*pprog = prog;
 }
 
-static int emit_call(u8 **pprog, void *func, void *ip)
+static int emit_patch(u8 **pprog, void *func, void *ip, u8 opcode)
 {
 	u8 *prog = *pprog;
 	int cnt = 0;
 	s64 offset;
 
-	offset = func - (ip + X86_CALL_SIZE);
+	offset = func - (ip + X86_PATCH_SIZE);
 	if (!is_simm32(offset)) {
 		pr_err("Target call %p is out of range\n", func);
 		return -EINVAL;
 	}
-	EMIT1_off32(0xE8, offset);
+	EMIT1_off32(opcode, offset);
 	*pprog = prog;
 	return 0;
+}
+
+static int emit_call(u8 **pprog, void *func, void *ip)
+{
+	return emit_patch(pprog, func, ip, 0xE8);
+}
+
+static int emit_jump(u8 **pprog, void *func, void *ip)
+{
+	return emit_patch(pprog, func, ip, 0xE9);
 }
 
 int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 		       void *old_addr, void *new_addr)
 {
-	u8 old_insn[X86_CALL_SIZE] = {};
-	u8 new_insn[X86_CALL_SIZE] = {};
+	int (*emit_patch_fn)(u8 **pprog, void *func, void *ip);
+	u8 old_insn[X86_PATCH_SIZE] = {};
+	u8 new_insn[X86_PATCH_SIZE] = {};
 	u8 *prog;
 	int ret;
 
 	if (!is_kernel_text((long)ip) &&
 	    !is_bpf_text_address((long)ip))
-		/* BPF trampoline in modules is not supported */
+		/* BPF poking in modules is not supported */
 		return -EINVAL;
+
+	switch (t) {
+	case BPF_MOD_NOP_TO_CALL ... BPF_MOD_CALL_TO_NOP:
+		emit_patch_fn = emit_call;
+		break;
+	case BPF_MOD_NOP_TO_JUMP ... BPF_MOD_JUMP_TO_NOP:
+		emit_patch_fn = emit_jump;
+		break;
+	default:
+		return -ENOTSUPP;
+	}
 
 	if (old_addr) {
 		prog = old_insn;
-		ret = emit_call(&prog, old_addr, (void *)ip);
+		ret = emit_patch_fn(&prog, old_addr, (void *)ip);
 		if (ret)
 			return ret;
 	}
 	if (new_addr) {
 		prog = new_insn;
-		ret = emit_call(&prog, new_addr, (void *)ip);
+		ret = emit_patch_fn(&prog, new_addr, (void *)ip);
 		if (ret)
 			return ret;
 	}
+
 	ret = -EBUSY;
 	mutex_lock(&text_mutex);
 	switch (t) {
 	case BPF_MOD_NOP_TO_CALL:
-		if (memcmp(ip, ideal_nops[NOP_ATOMIC5], X86_CALL_SIZE))
+	case BPF_MOD_NOP_TO_JUMP:
+		if (memcmp(ip, ideal_nops[NOP_ATOMIC5], X86_PATCH_SIZE))
 			goto out;
-		text_poke_bp(ip, new_insn, X86_CALL_SIZE, NULL);
+		text_poke_bp(ip, new_insn, X86_PATCH_SIZE, NULL);
 		break;
 	case BPF_MOD_CALL_TO_CALL:
-		if (memcmp(ip, old_insn, X86_CALL_SIZE))
+	case BPF_MOD_JUMP_TO_JUMP:
+		if (memcmp(ip, old_insn, X86_PATCH_SIZE))
 			goto out;
-		text_poke_bp(ip, new_insn, X86_CALL_SIZE, NULL);
+		text_poke_bp(ip, new_insn, X86_PATCH_SIZE, NULL);
 		break;
 	case BPF_MOD_CALL_TO_NOP:
-		if (memcmp(ip, old_insn, X86_CALL_SIZE))
+	case BPF_MOD_JUMP_TO_NOP:
+		if (memcmp(ip, old_insn, X86_PATCH_SIZE))
 			goto out;
-		text_poke_bp(ip, ideal_nops[NOP_ATOMIC5], X86_CALL_SIZE, NULL);
+		text_poke_bp(ip, ideal_nops[NOP_ATOMIC5], X86_PATCH_SIZE,
+			     NULL);
 		break;
 	}
 	ret = 0;
@@ -583,8 +616,9 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 
 	emit_prologue(&prog, bpf_prog->aux->stack_depth,
 		      bpf_prog_was_classic(bpf_prog));
+	addrs[0] = prog - temp;
 
-	for (i = 0; i < insn_cnt; i++, insn++) {
+	for (i = 1; i <= insn_cnt; i++, insn++) {
 		const s32 imm32 = insn->imm;
 		u32 dst_reg = insn->dst_reg;
 		u32 src_reg = insn->src_reg;
@@ -1045,20 +1079,41 @@ xadd:			if (is_imm8(insn->off))
 		case BPF_JMP | BPF_JSLT | BPF_X:
 		case BPF_JMP | BPF_JSGE | BPF_X:
 		case BPF_JMP | BPF_JSLE | BPF_X:
+		case BPF_JMP32 | BPF_JEQ | BPF_X:
+		case BPF_JMP32 | BPF_JNE | BPF_X:
+		case BPF_JMP32 | BPF_JGT | BPF_X:
+		case BPF_JMP32 | BPF_JLT | BPF_X:
+		case BPF_JMP32 | BPF_JGE | BPF_X:
+		case BPF_JMP32 | BPF_JLE | BPF_X:
+		case BPF_JMP32 | BPF_JSGT | BPF_X:
+		case BPF_JMP32 | BPF_JSLT | BPF_X:
+		case BPF_JMP32 | BPF_JSGE | BPF_X:
+		case BPF_JMP32 | BPF_JSLE | BPF_X:
 			/* cmp dst_reg, src_reg */
-			EMIT3(add_2mod(0x48, dst_reg, src_reg), 0x39,
-			      add_2reg(0xC0, dst_reg, src_reg));
+			if (BPF_CLASS(insn->code) == BPF_JMP)
+				EMIT1(add_2mod(0x48, dst_reg, src_reg));
+			else if (is_ereg(dst_reg) || is_ereg(src_reg))
+				EMIT1(add_2mod(0x40, dst_reg, src_reg));
+			EMIT2(0x39, add_2reg(0xC0, dst_reg, src_reg));
 			goto emit_cond_jmp;
 
 		case BPF_JMP | BPF_JSET | BPF_X:
+		case BPF_JMP32 | BPF_JSET | BPF_X:
 			/* test dst_reg, src_reg */
-			EMIT3(add_2mod(0x48, dst_reg, src_reg), 0x85,
-			      add_2reg(0xC0, dst_reg, src_reg));
+			if (BPF_CLASS(insn->code) == BPF_JMP)
+				EMIT1(add_2mod(0x48, dst_reg, src_reg));
+			else if (is_ereg(dst_reg) || is_ereg(src_reg))
+				EMIT1(add_2mod(0x40, dst_reg, src_reg));
+			EMIT2(0x85, add_2reg(0xC0, dst_reg, src_reg));
 			goto emit_cond_jmp;
 
 		case BPF_JMP | BPF_JSET | BPF_K:
+		case BPF_JMP32 | BPF_JSET | BPF_K:
 			/* test dst_reg, imm32 */
-			EMIT1(add_1mod(0x48, dst_reg));
+			if (BPF_CLASS(insn->code) == BPF_JMP)
+				EMIT1(add_1mod(0x48, dst_reg));
+			else if (is_ereg(dst_reg))
+				EMIT1(add_1mod(0x40, dst_reg));
 			EMIT2_off32(0xF7, add_1reg(0xC0, dst_reg), imm32);
 			goto emit_cond_jmp;
 
@@ -1072,8 +1127,31 @@ xadd:			if (is_imm8(insn->off))
 		case BPF_JMP | BPF_JSLT | BPF_K:
 		case BPF_JMP | BPF_JSGE | BPF_K:
 		case BPF_JMP | BPF_JSLE | BPF_K:
+		case BPF_JMP32 | BPF_JEQ | BPF_K:
+		case BPF_JMP32 | BPF_JNE | BPF_K:
+		case BPF_JMP32 | BPF_JGT | BPF_K:
+		case BPF_JMP32 | BPF_JLT | BPF_K:
+		case BPF_JMP32 | BPF_JGE | BPF_K:
+		case BPF_JMP32 | BPF_JLE | BPF_K:
+		case BPF_JMP32 | BPF_JSGT | BPF_K:
+		case BPF_JMP32 | BPF_JSLT | BPF_K:
+		case BPF_JMP32 | BPF_JSGE | BPF_K:
+		case BPF_JMP32 | BPF_JSLE | BPF_K:
+			/* test dst_reg, dst_reg to save one extra byte */
+			if (imm32 == 0) {
+				if (BPF_CLASS(insn->code) == BPF_JMP)
+					EMIT1(add_2mod(0x48, dst_reg, dst_reg));
+				else if (is_ereg(dst_reg))
+					EMIT1(add_2mod(0x40, dst_reg, dst_reg));
+				EMIT2(0x85, add_2reg(0xC0, dst_reg, dst_reg));
+				goto emit_cond_jmp;
+			}
+
 			/* cmp dst_reg, imm8/32 */
-			EMIT1(add_1mod(0x48, dst_reg));
+			if (BPF_CLASS(insn->code) == BPF_JMP)
+				EMIT1(add_1mod(0x48, dst_reg));
+			else if (is_ereg(dst_reg))
+				EMIT1(add_1mod(0x40, dst_reg));
 
 			if (is_imm8(imm32))
 				EMIT3(0x83, add_1reg(0xF8, dst_reg), imm32);
@@ -1377,7 +1455,7 @@ int arch_prepare_bpf_trampoline(void *image, struct btf_func_model *m, u32 flags
 		/* skip patched call instruction and point orig_call to actual
 		 * body of the kernel function.
 		 */
-		orig_call += X86_CALL_SIZE;
+		orig_call += X86_PATCH_SIZE;
 
 	prog = image;
 
@@ -1484,7 +1562,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		extra_pass = true;
 		goto skip_init_addrs;
 	}
-	addrs = kmalloc_array(prog->len, sizeof(*addrs), GFP_KERNEL);
+	addrs = kmalloc_array(prog->len + 1, sizeof(*addrs), GFP_KERNEL);
 	if (!addrs) {
 		prog = orig_prog;
 		goto out_addrs;
@@ -1494,7 +1572,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	 * Before first pass, make a rough estimation of addrs[]
 	 * each BPF instruction is translated to less than 64 bytes
 	 */
-	for (proglen = 0, i = 0; i < prog->len; i++) {
+	for (proglen = 0, i = 0; i <= prog->len; i++) {
 		proglen += 64;
 		addrs[i] = proglen;
 	}
@@ -1571,7 +1649,7 @@ out_image:
 
 	if (!image || !prog->is_func || extra_pass) {
 		if (image)
-			bpf_prog_fill_jited_linfo(prog, addrs);
+			bpf_prog_fill_jited_linfo(prog, addrs + 1);
 out_addrs:
 		kfree(addrs);
 		kfree(jit_data);
