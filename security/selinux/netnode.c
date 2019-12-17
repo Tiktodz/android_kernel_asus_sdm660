@@ -293,7 +293,13 @@ static __init int sel_netnode_init(void)
 {
 	int iter;
 
-	if (!selinux_enabled)
+// [ SEC_SELINUX_PORTING_COMMON
+#ifdef CONFIG_ALWAYS_ENFORCE
+	selinux_enabled_boot = 1;
+#endif
+// ] SEC_SELINUX_PORTING_COMMON
+
+	if (!selinux_enabled_boot)
 		return 0;
 
 	for (iter = 0; iter < SEL_NETNODE_HASH_SIZE; iter++) {

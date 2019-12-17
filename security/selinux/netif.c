@@ -274,7 +274,13 @@ static __init int sel_netif_init(void)
 {
 	int i;
 
-	if (!selinux_enabled)
+// [ SEC_SELINUX_PORTING_COMMON
+#ifdef CONFIG_ALWAYS_ENFORCE
+	selinux_enabled_boot = 1;
+#endif
+// ] SEC_SELINUX_PORTING_COMMON
+
+	if (!selinux_enabled_boot)
 		return 0;
 
 	for (i = 0; i < SEL_NETIF_HASH_SIZE; i++)
