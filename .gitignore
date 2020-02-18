@@ -147,3 +147,8 @@ AnyKernel3
 
 # Build/Regenerate Scripts
 *.sh
+
+#
+#Ignoring Android.bp link file
+#
+Android.bp
