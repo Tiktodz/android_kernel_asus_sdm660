@@ -199,14 +199,9 @@ static inline unsigned int cpumask_local_spread(unsigned int i, int node)
 	return 0;
 }
 
-static inline unsigned int cpumask_any_and_distribute(const struct cpumask *src1p,
+static inline int cpumask_any_and_distribute(const struct cpumask *src1p,
 					     const struct cpumask *src2p) {
 	return cpumask_next_and(-1, src1p, src2p);
-}
-
-static inline unsigned int cpumask_any_distribute(const struct cpumask *srcp)
-{
-	return cpumask_first(srcp);
 }
 
 #define for_each_cpu(cpu, mask)			\
@@ -351,9 +346,8 @@ int cpumask_any_but(const struct cpumask *mask, unsigned int cpu);
 #endif /* NR_CPUS <= BITS_PER_LONG */
 
 unsigned int cpumask_local_spread(unsigned int i, int node);
-unsigned int cpumask_any_and_distribute(const struct cpumask *src1p,
+int cpumask_any_and_distribute(const struct cpumask *src1p,
 			       const struct cpumask *src2p);
-unsigned int cpumask_any_distribute(const struct cpumask *srcp);
 
 /**
  * for_each_cpu - iterate over every cpu in a mask
