@@ -283,7 +283,7 @@ source "security/Kconfig.hardening"
 
 config LSM
 	string "Ordered list of enabled LSMs"
-	default "integrity"
+	default "integrity,bpf"
 	help
 	  A comma-separated list of LSMs, in initialization order.
 	  Any LSMs left off this list will be ignored.
