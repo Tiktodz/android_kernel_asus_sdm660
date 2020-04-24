@@ -8,7 +8,7 @@
  ****************************************************************
  **
  **  WARNING:
- **  The values in this file are exported to user space via 
+ **  The values in this file are exported to user space via
  **  the sysctl() binary interface.  Do *NOT* change the
  **  numbering of any existing values here, and do not change
  **  any numbers within any one set of values.  If you have to
@@ -38,33 +38,33 @@ struct ctl_table_header;
 struct ctl_dir;
 
 typedef int proc_handler (struct ctl_table *ctl, int write,
-			  void __user *buffer, size_t *lenp, loff_t *ppos);
+			  void *buffer, size_t *lenp, loff_t *ppos);
 
 extern int proc_dostring(struct ctl_table *, int,
-			 void __user *, size_t *, loff_t *);
+			 void *, size_t *, loff_t *);
 extern int proc_dointvec(struct ctl_table *, int,
-			 void __user *, size_t *, loff_t *);
+			 void *, size_t *, loff_t *);
 extern int proc_douintvec(struct ctl_table *, int,
-			 void __user *, size_t *, loff_t *);
+			 void *, size_t *, loff_t *);
 extern int proc_dointvec_minmax(struct ctl_table *, int,
-				void __user *, size_t *, loff_t *);
+				void *, size_t *, loff_t *);
 extern int proc_douintvec_minmax(struct ctl_table *table, int write,
-				 void __user *buffer, size_t *lenp,
+				 void *buffer, size_t *lenp,
 				 loff_t *ppos);
 extern int proc_dointvec_jiffies(struct ctl_table *, int,
-				 void __user *, size_t *, loff_t *);
+				 void *, size_t *, loff_t *);
 extern int proc_dointvec_userhz_jiffies(struct ctl_table *, int,
-					void __user *, size_t *, loff_t *);
+					void *, size_t *, loff_t *);
 extern int proc_dointvec_ms_jiffies(struct ctl_table *, int,
-				    void __user *, size_t *, loff_t *);
+				    void *, size_t *, loff_t *);
 extern int proc_doulongvec_minmax(struct ctl_table *, int,
-				  void __user *, size_t *, loff_t *);
+				  void *, size_t *, loff_t *);
 extern int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int,
-				      void __user *, size_t *, loff_t *);
+				      void *, size_t *, loff_t *);
 extern int proc_do_large_bitmap(struct ctl_table *, int,
 				void __user *, size_t *, loff_t *);
 extern int proc_do_static_key(struct ctl_table *table, int write,
-			      void __user *buffer, size_t *lenp,
+			      void *buffer, size_t *lenp,
 			      loff_t *ppos);
 extern int proc_douintvec_capacity(struct ctl_table *table, int write,
 				   void __user *buffer, size_t *lenp,
@@ -75,7 +75,7 @@ extern int proc_douintvec_ravg_window(struct ctl_table *table, int write,
 
 /*
  * Register a set of sysctl names by calling register_sysctl_table
- * with an initialised array of struct ctl_table's.  An entry with 
+ * with an initialised array of struct ctl_table's.  An entry with
  * NULL procname terminates the table.  table->de will be
  * set up by the registration and need not be initialised in advance.
  *
@@ -242,7 +242,7 @@ static inline void setup_sysctl_set(struct ctl_table_set *p,
 
 #endif /* CONFIG_SYSCTL */
 
-int sysctl_max_threads(struct ctl_table *table, int write,
-		       void __user *buffer, size_t *lenp, loff_t *ppos);
+int sysctl_max_threads(struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos);
 
 #endif /* _LINUX_SYSCTL_H */
