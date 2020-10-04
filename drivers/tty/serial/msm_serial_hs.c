@@ -263,7 +263,6 @@ static const struct of_device_id msm_hs_match_table[] = {
 #define RX_FLUSH_COMPLETE_TIMEOUT 300 /* In jiffies */
 #define BLSP_UART_CLK_FMAX 63160000
 
-static struct dentry *debug_base;
 static struct platform_driver msm_serial_hs_platform_driver;
 static struct uart_driver msm_hs_driver;
 static const struct uart_ops msm_hs_ops;
@@ -666,29 +665,6 @@ static int msm_serial_loopback_enable_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(loopback_enable_fops, msm_serial_loopback_enable_get,
 			msm_serial_loopback_enable_set, "%llu\n");
 
-/*
- * msm_serial_hs debugfs node: <debugfs_root>/msm_serial_hs/loopback.<id>
- * writing 1 turns on internal loopback mode in HW. Useful for automation
- * test scripts.
- * writing 0 disables the internal loopback mode. Default is disabled.
- */
-static void msm_serial_debugfs_init(struct msm_hs_port *msm_uport,
-					   int id)
-{
-	char node_name[15];
-
-	scnprintf(node_name, sizeof(node_name), "loopback.%d", id);
-	msm_uport->loopback_dir = debugfs_create_file(node_name,
-						0644,
-						debug_base,
-						msm_uport,
-						&loopback_enable_fops);
-
-	if (IS_ERR_OR_NULL(msm_uport->loopback_dir))
-		MSM_HS_ERR("%s(): Cannot create loopback.%d debug entry\n",
-							__func__, id);
-}
-
 static int msm_hs_remove(struct platform_device *pdev)
 {
 
@@ -707,8 +683,9 @@ static int msm_hs_remove(struct platform_device *pdev)
 	dev = msm_uport->uport.dev;
 	sysfs_remove_file(&pdev->dev.kobj, &dev_attr_clock.attr);
 	sysfs_remove_file(&pdev->dev.kobj, &dev_attr_debug_mask.attr);
+#ifdef CONFIG_DEBUG_FS
 	debugfs_remove(msm_uport->loopback_dir);
-
+#endif
 	dma_free_coherent(msm_uport->uport.dev,
 			UART_DMA_DESC_NR * UARTDM_RX_BUF_SIZE,
 			msm_uport->rx.buffer, msm_uport->rx.rbuffer);
@@ -3571,7 +3548,9 @@ static int msm_hs_probe(struct platform_device *pdev)
 		goto err_clock;
 	}
 
+#ifdef CONFIG_DEBUG_FS
 	msm_serial_debugfs_init(msm_uport, pdev->id);
+#endif
 	msm_hs_unconfig_uart_gpios(uport);
 
 	uport->line = pdev->id;
@@ -3616,14 +3595,17 @@ static int __init msm_serial_hs_init(void)
 		pr_err("%s failed to load\n", __func__);
 		return ret;
 	}
+#ifdef CONFIG_DEBUG_FS
 	debug_base = debugfs_create_dir("msm_serial_hs", NULL);
 	if (IS_ERR_OR_NULL(debug_base))
 		pr_err("msm_serial_hs: Cannot create debugfs dir\n");
-
+#endif
 	ret = platform_driver_register(&msm_serial_hs_platform_driver);
 	if (ret) {
 		pr_err("%s failed to load\n", __func__);
+#ifdef CONFIG_DEBUG_FS
 		debugfs_remove_recursive(debug_base);
+#endif
 		uart_unregister_driver(&msm_hs_driver);
 		return ret;
 	}
@@ -3744,7 +3726,9 @@ static void msm_hs_shutdown(struct uart_port *uport)
 static void __exit msm_serial_hs_exit(void)
 {
 	pr_debug("msm_serial_hs module removed\n");
+#ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(debug_base);
+#endif
 	platform_driver_unregister(&msm_serial_hs_platform_driver);
 	uart_unregister_driver(&msm_hs_driver);
 }
