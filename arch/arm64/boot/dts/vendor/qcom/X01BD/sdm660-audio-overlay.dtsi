@@ -26,22 +26,6 @@
 	};
 };
 
-&cdc_pdm_gpios {
-	/delete-property/ status;
-};
-
-&cdc_comp_gpios {
-	/delete-property/ status;
-};
-
-&cdc_dmic_gpios {
-	/delete-property/ status;
-};
-
-&cdc_sdw_gpios {
-	/delete-property/ status;
-};
-
 &wsa_spkr_en1 {
 	/delete-property/ status;
 };
