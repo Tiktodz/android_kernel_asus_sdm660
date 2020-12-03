@@ -15,7 +15,7 @@
 		status = "ok";
 	};
 };
-
+/*
 &pm660l_pwm_3 {
 	/delete-node/ qcom,lpg;
 };
@@ -37,7 +37,7 @@
 	qcom,duty-pcts = [00 40];
 	qcom,use-blink;
 };
-
+*/
 &pm660l_flash0 {
 	qcom,max-current = <1000>;
 	qcom,current-ma = <900>;
