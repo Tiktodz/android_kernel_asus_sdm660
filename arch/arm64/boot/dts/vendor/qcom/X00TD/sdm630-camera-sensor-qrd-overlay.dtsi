@@ -32,7 +32,7 @@
 		status = "ok";
 	};
 
-	/delete-node/ cam_vaf_fixed_regulator;
+	/delete-node/ cam_vaf_gpio_regulator;
 };
 
 &cci {
