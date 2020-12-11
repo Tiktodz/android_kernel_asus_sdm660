@@ -23,17 +23,10 @@
 #define DBG_MAX_MSG   512UL
 #define DBG_MSG_LEN   160UL
 #define TIME_BUF_LEN  17
-#define DBG_EVENT_LEN  143
-
-#define ENABLE_EVENT_LOG 1
 
 #define USB_BAM_NR_PORTS	4
 
 #define ARRAY_INDEX_FROM_ADDR(base, addr) ((addr) - (base))
-
-static unsigned int enable_event_log = ENABLE_EVENT_LOG;
-module_param(enable_event_log, uint, 0644);
-MODULE_PARM_DESC(enable_event_log, "enable event logging in debug buffer");
 
 #define LOGLEVEL_NONE 8
 #define LOGLEVEL_DEBUG 7
@@ -41,20 +34,10 @@ MODULE_PARM_DESC(enable_event_log, "enable event logging in debug buffer");
 
 #define log_event(log_level, x...)					\
 do {									\
-	unsigned long flags;						\
-	char *buf;							\
 	if (log_level == LOGLEVEL_DEBUG)				\
 		pr_debug(x);						\
 	else if (log_level == LOGLEVEL_ERR)				\
 		pr_err(x);						\
-	if (enable_event_log) {						\
-		write_lock_irqsave(&usb_bam_dbg.lck, flags);		\
-		buf = usb_bam_dbg.buf[usb_bam_dbg.idx];			\
-		put_timestamp(buf);					\
-		snprintf(&buf[TIME_BUF_LEN - 1], DBG_EVENT_LEN, x);	\
-		usb_bam_dbg.idx = (usb_bam_dbg.idx + 1) % DBG_MAX_MSG;	\
-		write_unlock_irqrestore(&usb_bam_dbg.lck, flags);	\
-	}								\
 } while (0)
 
 #define log_event_none(x, ...) log_event(LOGLEVEL_NONE, x, ##__VA_ARGS__)
@@ -309,15 +292,6 @@ static int __usb_bam_register_wake_cb(enum usb_ctrl bam_type, int idx,
 
 static void wait_for_prod_release(enum usb_ctrl cur_bam);
 static void usb_bam_start_suspend(struct usb_bam_ipa_handshake_info *info_ptr);
-
-static struct {
-	char buf[DBG_MAX_MSG][DBG_MSG_LEN];   /* buffer */
-	unsigned int idx;   /* index */
-	rwlock_t lck;   /* lock */
-} __maybe_unused usb_bam_dbg = {
-	.idx = 0,
-	.lck = __RW_LOCK_UNLOCKED(lck)
-};
 
 /*put_timestamp - writes time stamp to buffer */
 static void __maybe_unused put_timestamp(char *tbuf)
