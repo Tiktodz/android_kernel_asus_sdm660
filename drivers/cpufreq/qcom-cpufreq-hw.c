@@ -604,6 +604,11 @@ static int qcom_cpufreq_hw_read_lut(struct platform_device *pdev,
 		per_cpu(cpufreq_boost_pcpu, cpu).max_index = i - 1;
 	}
 
+	for_each_cpu(cpu, &c->related_cpus) {
+		per_cpu(cpufreq_boost_pcpu, cpu).c = c;
+		per_cpu(cpufreq_boost_pcpu, cpu).max_index = i - 1;
+	}
+
 	if (of_table)
 		devm_kfree(dev, of_table);
 
@@ -924,6 +929,11 @@ static int qcom_cpufreq_hw_driver_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "CPUFreq HW driver failed to register\n");
 		return rc;
 	}
+
+	rc = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE, "qcom-cpufreq:online",
+				       cpuhp_qcom_online, NULL);
+	if (rc)
+		dev_err(&pdev->dev, "CPUHP callback setup failed, rc=%d\n", rc);
 
 	rc = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE, "qcom-cpufreq:online",
 				       cpuhp_qcom_online, NULL);
