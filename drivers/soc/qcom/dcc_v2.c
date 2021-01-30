@@ -344,7 +344,6 @@ static int __dcc_ll_cfg(struct dcc_drvdata *drvdata, int curr_list)
 			if (ret)
 				goto overstep;
 			sram_offset += 4;
-
 			ret = dcc_sram_writel(drvdata,
 					entry->mask, sram_offset);
 			if (ret)
