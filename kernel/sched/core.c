@@ -2844,6 +2844,7 @@ out:
 		ttwu_stat(p, cpu, wake_flags);
 	preempt_enable();
 
+#ifdef CONFIG_SCHED_WALT
 	if (success && sched_predl) {
 		raw_spin_lock_irqsave(&cpu_rq(cpu)->lock, flags);
 		if (do_pl_notif(cpu_rq(cpu)))
@@ -2852,6 +2853,7 @@ out:
 						SCHED_CPUFREQ_PL);
 		raw_spin_unlock_irqrestore(&cpu_rq(cpu)->lock, flags);
 	}
+#endif
 	return success;
 }
 
