@@ -888,9 +888,6 @@ struct task_struct {
 #ifdef CONFIG_CGROUP_SCHED
 	struct task_group		*sched_task_group;
 #endif
-#ifdef CONFIG_SCHED_TUNE
-	int				stune_idx;
-#endif
 	struct sched_dl_entity		dl;
 
 #ifdef CONFIG_UCLAMP_TASK
@@ -1517,7 +1514,12 @@ struct task_struct {
 	struct mutex			futex_exit_mutex;
 #endif
 
+	/* bca62a0ae565 ("sched/tune: Fix improper accounting of tasks") */
+#ifdef CONFIG_SCHED_TUNE
+	ANDROID_KABI_USE(7, int stune_idx);
+#else
 	ANDROID_KABI_RESERVE(7);
+#endif
 #ifdef CONFIG_KSU_SUSFS
 	ANDROID_KABI_USE(8, u64 susfs_last_fake_mnt_id);
 #else
