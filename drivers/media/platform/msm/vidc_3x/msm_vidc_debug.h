@@ -114,14 +114,11 @@ static inline char *VIDC_MSG_PRIO2STRING(int __level)
 		} \
 } while (0)
 
-struct dentry *msm_vidc_debugfs_init_drv(void);
-struct dentry *msm_vidc_debugfs_init_core(struct msm_vidc_core *core,
-		struct dentry *parent);
-struct dentry *msm_vidc_debugfs_init_inst(struct msm_vidc_inst *inst,
-		struct dentry *parent);
-void msm_vidc_debugfs_deinit_inst(struct msm_vidc_inst *inst);
-void msm_vidc_debugfs_update(struct msm_vidc_inst *inst,
-		enum msm_vidc_debugfs_event e);
+#define msm_vidc_debugfs_init_drv(x, ...) 1
+#define msm_vidc_debugfs_init_core(x, ...) 1
+#define msm_vidc_debugfs_init_inst(x, ...) 1
+#define msm_vidc_debugfs_deinit_inst(x, ...) 1
+#define msm_vidc_debugfs_update(x, ...) 1
 
 static inline void tic(struct msm_vidc_inst *i, enum profiling_points p,
 				 char *b)
