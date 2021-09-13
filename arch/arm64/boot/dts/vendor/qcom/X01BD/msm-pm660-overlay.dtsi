@@ -13,43 +13,14 @@
 	};
 };
 
-&pm660_gpios {
-	gpio@cb00 {
-		status = "ok";
-		qcom,master-en = <0>;
-	};
-};
-
-&pm660_vadc {
-	chg-alert {
-		label = "chg-alert";
-		reg = <VADC_P_MUX10_1_1>;
-		qcom,pre-scaling = <1 1>;
-		qcom,hw-settle-time = <200>;
-	};
-
-	gpio3_adc {
-		label = "gpio3_adc";
-		reg = <0x13>;
-		reg = <ADC_GPIO2>;
-		qcom,decimation = <1024>;
-		qcom,pre-scaling = <1 1>;
-		qcom,hw-settle-time = <200>;
-	};
-};
-
 &pm660_charger {
-	qcom,chg-alert-vadc = <&pm660_vadc>;
 	ADC_SW_EN-gpios59 = <&tlmm 71 0x0>;
 	ADCPWREN_PMI_GP1-gpios34 = <&tlmm 3 0x0>;
 	qcom,micro-usb;
 	qcom,thermal-mitigation = <3000000 3000000 3000000 2500000 2000000 1500000>;
-	qcom,fcc-max-ua = <2500000>;
 	qcom,fv-max-uv = <4350000>;
-	qcom,usb-icl-ua = <2500000>;
 	qcom,float-option = <1>;
 	qcom,auto-recharge-soc;
-	qcom,pm-gpio3-vadc = <&pm660_vadc>;	
 };
 
 &pm660_pdphy {

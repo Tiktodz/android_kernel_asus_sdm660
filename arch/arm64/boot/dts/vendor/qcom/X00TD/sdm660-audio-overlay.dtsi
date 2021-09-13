@@ -22,7 +22,3 @@
 		qcom,lpi-gpios;
 	};
 };
-
-&pm660_gpios {
-	/delete-node/ gpio@c200;
-};
