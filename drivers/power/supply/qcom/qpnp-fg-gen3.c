@@ -4433,6 +4433,7 @@ static int fg_hw_init(struct fg_dev *fg)
 	return 0;
 }
 
+#ifndef CONFIG_MACH_ASUS_SDM660
 static int fg_adjust_timebase(struct fg_dev *fg)
 {
 	struct fg_gen3_chip *chip = container_of(fg, struct fg_gen3_chip, fg);
@@ -4467,6 +4468,7 @@ static int fg_adjust_timebase(struct fg_dev *fg)
 
 	return 0;
 }
+#endif
 
 /* INTERRUPT HANDLERS STAY HERE */
 
@@ -4579,9 +4581,11 @@ static irqreturn_t fg_delta_batt_temp_irq_handler(int irq, void *data)
 	fg->health = prop.intval;
 
 	if (fg->last_batt_temp != batt_temp) {
+#ifndef CONFIG_MACH_ASUS_SDM660
 		rc = fg_adjust_timebase(fg);
 		if (rc < 0)
 			pr_err("Error in adjusting timebase, rc=%d\n", rc);
+#endif
 
 		rc = fg_adjust_recharge_voltage(fg);
 		if (rc < 0)
@@ -4657,9 +4661,11 @@ static irqreturn_t fg_delta_msoc_irq_handler(int irq, void *data)
 	if (rc < 0)
 		pr_err("Error in validating ESR, rc=%d\n", rc);
 
+#ifndef CONFIG_MACH_ASUS_SDM660
 	rc = fg_adjust_timebase(fg);
 	if (rc < 0)
 		pr_err("Error in adjusting timebase, rc=%d\n", rc);
+#endif
 
 	if (batt_psy_initialized(fg))
 		power_supply_changed(fg->batt_psy);
