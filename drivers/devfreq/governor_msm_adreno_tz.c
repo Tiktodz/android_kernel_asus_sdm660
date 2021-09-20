@@ -101,8 +101,10 @@ static ssize_t adrenoboost_save(struct device *dev,
 {
 	int input;
 	sscanf(buf, "%d ", &input);
-	if (input < 0 || input > 3) {
+	if (input < 0) {
 		adrenoboost = 0;
+	} else if (input > 3) {
+		adrenoboost = 3;
 	} else {
 		adrenoboost = input;
 	}
@@ -422,12 +424,12 @@ static int lvl_multiplicator_map_1[] = {5,5,6,8,9,1,1    ,1,1};
 static int lvl_divider_map_1[] = {10,10,10,10,10,1,1    ,1,1};
 
 // for boost == 2 -- boost divide on the low spectrum, dampen the lower freq values, unneeded to boost the low freq spectrum so much at start
-static int lvl_multiplicator_map_2[] = {6,7,8,1,1,1,1    ,1,1};
-static int lvl_divider_map_2[] = {10,10,10,1,1,1,1    ,1,1};
+static int lvl_multiplicator_map_2[] = {9,1,1,1,1,10,8    ,1,1};
+static int lvl_divider_map_2[] = {10,1,1,1,1,14,12    ,1,1};
 
 // for boost == 3 -- boost divide on the low spectrum, dampen the lower freq values, unneeded to boost the low freq spectrum so much at start
-static int lvl_multiplicator_map_3[] = {9,1,1,1,1,10,8    ,1,1};
-static int lvl_divider_map_3[] = {10,1,1,1,1,14,12    ,1,1};
+static int lvl_multiplicator_map_3[] = {10,1,1,1,1,11,9    ,1,1};
+static int lvl_divider_map_3[] = {10,1,1,1,1,15,13    ,1,1};
 
 #endif
 
