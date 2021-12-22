@@ -62,6 +62,9 @@ ifeq ($(avx_supported),yes)
 	obj-$(CONFIG_CRYPTO_TWOFISH_AVX_X86_64) += twofish-avx-x86_64.o
 	obj-$(CONFIG_CRYPTO_SERPENT_AVX_X86_64) += serpent-avx-x86_64.o
 	obj-$(CONFIG_CRYPTO_BLAKE2S_X86) += blake2s-x86_64.o
+	blake2s-x86_64-y := blake2s-shash.o
+	obj-$(if $(CONFIG_CRYPTO_BLAKE2S_X86),y) += libblake2s-x86_64.o
+	libblake2s-x86_64-y := blake2s-core.o blake2s-glue.o
 endif
 
 # These modules require assembler to support AVX2.
