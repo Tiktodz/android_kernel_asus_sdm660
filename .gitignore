@@ -135,3 +135,15 @@ all.config
 
 # fetched Android config fragments
 kernel/configs/android-*.cfg
+
+# Out directory
+out
+
+# compiler
+clang
+
+# AnyKernel3
+AnyKernel3
+
+# Build/Regenerate Scripts
+*.sh
