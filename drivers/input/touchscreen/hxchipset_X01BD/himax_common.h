@@ -85,7 +85,7 @@ extern int himax_TestResultLen;
 #define HX_ESD_RECOVERY
 /* Huaqin add for ZQL1820-701 by zhangxiude at 2018/9/19 start */
 #define HX_AUTO_UPDATE_FW
-#define HX_SMART_WAKEUP
+#define HX_SMART_WAKEUP 1
 /* Huaqin add for ZQL1820-701 by zhangxiude at 2018/9/19 end */
 /*#define HX_GESTURE_TRACK*/
 /*#define HX_HIGH_SENSE*/
