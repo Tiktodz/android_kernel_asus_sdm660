@@ -26,8 +26,6 @@
 # * Build dtc in the kernel tree
 # * run 'make check" on dtc built from the kernel tree
 
-set -ev
-
 DTC_UPSTREAM_PATH=`pwd`/../dtc
 DTC_LINUX_PATH=`pwd`/scripts/dtc
 
