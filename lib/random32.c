@@ -38,6 +38,7 @@
 #include <linux/jiffies.h>
 #include <linux/random.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
 /**
