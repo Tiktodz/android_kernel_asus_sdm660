@@ -25,6 +25,7 @@
 #include <linux/errno.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
+#include <linux/kmemleak.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
@@ -130,6 +131,8 @@ static int __vdso_init(enum arch_vdso_type arch_index)
 				GFP_KERNEL);
 	if (vdso_pagelist == NULL)
 		return -ENOMEM;
+	
+	kmemleak_not_leak(vdso_pagelist);
 
 	/* Grab the vDSO data page. */
 	vdso_pagelist[0] = phys_to_page(__pa_symbol(vdso_data));
