@@ -209,7 +209,7 @@ static int __debug_mask;
 #endif
 #endif /* CONFIG_MACH_ASUS_SDM660 */
 
-static int __weak_chg_icl_ua = 500000;
+static int __weak_chg_icl_ua = 900000;
 static ssize_t weak_chg_icl_ua_show(struct device *dev, struct device_attribute
 				     *attr, char *buf)
 {
