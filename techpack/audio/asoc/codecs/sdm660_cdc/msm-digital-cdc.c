@@ -1331,12 +1331,36 @@ static struct kobj_attribute headphone_gain_attribute =
 	__ATTR(headphone_gain, 0664,
 		headphone_gain_show,
 		headphone_gain_store);
+		
+static ssize_t earpiece_gain_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		snd_soc_component_read32(sound_control_component_ptr, MSM89XX_CDC_CORE_RX3_VOL_CTL_B2_CTL)
+	);
+}
+ static ssize_t earpiece_gain_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	int input;
+ 	sscanf(buf, "%d", &input);
+ 	if (input < -10 || input > 20)
+		input = 0;
+ 	snd_soc_component_write(sound_control_component_ptr, MSM89XX_CDC_CORE_RX3_VOL_CTL_B2_CTL, input);
+ 	return count;
+}
+ static struct kobj_attribute earpiece_gain_attribute =
+	__ATTR(earpiece_gain, 0664,
+		earpiece_gain_show,
+		earpiece_gain_store);
 
 static ssize_t mic_gain_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n",
-		snd_soc_component_read32(sound_control_component_ptr, MSM89XX_CDC_CORE_TX1_VOL_CTL_GAIN));
+		snd_soc_component_read32(sound_control_component_ptr, MSM89XX_CDC_CORE_TX1_VOL_CTL_GAIN),
+		snd_soc_component_read32(sound_control_component_ptr, MSM89XX_CDC_CORE_TX2_VOL_CTL_GAIN)
+	);
 }
  static ssize_t mic_gain_store(struct kobject *kobj,
 		struct kobj_attribute *attr, const char *buf, size_t count)
@@ -1357,6 +1381,7 @@ static ssize_t mic_gain_show(struct kobject *kobj,
 static struct attribute *sound_control_attrs[] = {
 		&headphone_gain_attribute.attr,
 		&mic_gain_attribute.attr,
+		&earpiece_gain_attribute.attr,
 		NULL,
 };
 
@@ -1981,6 +2006,7 @@ static const struct snd_kcontrol_new msm_dig_snd_controls[] = {
 			  MSM89XX_CDC_CORE_IIR2_GAIN_B1_CTL,
 			0,  -84, 40, digital_gain),
 
+#ifndef CONFIG_SOUND_CONTROL
 	SOC_SINGLE_SX_TLV("RX1 Digital Volume",
 		MSM89XX_CDC_CORE_RX1_VOL_CTL_B2_CTL,
 		0, -84, 40, digital_gain),
@@ -1990,6 +2016,7 @@ static const struct snd_kcontrol_new msm_dig_snd_controls[] = {
 	SOC_SINGLE_SX_TLV("RX3 Digital Volume",
 		MSM89XX_CDC_CORE_RX3_VOL_CTL_B2_CTL,
 		0, -84, 40, digital_gain),
+#endif
 
 	SOC_SINGLE_EXT("IIR1 Enable Band1", IIR1, BAND1, 1, 0,
 		msm_dig_cdc_get_iir_enable_audio_mixer,
