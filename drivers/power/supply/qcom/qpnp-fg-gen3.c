@@ -5125,8 +5125,8 @@ static int fg_parse_dt(struct fg_gen3_chip *chip)
 
 	chip->dt.jeita_thresholds[JEITA_COLD] = DEFAULT_BATT_TEMP_COLD;
 	chip->dt.jeita_thresholds[JEITA_COOL] = DEFAULT_BATT_TEMP_COOL;
-	chip->dt.jeita_thresholds[JEITA_WARM] = DEFAULT_BATT_TEMP_WARM;
-	chip->dt.jeita_thresholds[JEITA_HOT] = DEFAULT_BATT_TEMP_HOT;
+	chip->dt.jeita_thresholds[JEITA_WARM] = 97;
+	chip->dt.jeita_thresholds[JEITA_HOT] = 97;
 	if (of_property_count_elems_of_size(node, "qcom,fg-jeita-thresholds",
 		sizeof(u32)) == NUM_JEITA_LEVELS) {
 		rc = of_property_read_u32_array(node,
