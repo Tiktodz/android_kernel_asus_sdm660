@@ -32,6 +32,7 @@
 &pm660_charger {
 	qcom,micro-usb;
 	qcom,fv-max-uv = <4350000>;
+	qcom,fcc-max-ua = <2300000>;
 	qcom,float-option = <1>;
 	qcom,auto-recharge-soc;
 };

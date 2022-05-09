@@ -19,6 +19,7 @@
 	qcom,micro-usb;
 	qcom,thermal-mitigation = <3000000 3000000 3000000 2500000 2000000 1500000>;
 	qcom,fv-max-uv = <4350000>;
+	qcom,fcc-max-ua = <2300000>;
 	qcom,float-option = <1>;
 	qcom,auto-recharge-soc;
 };
