@@ -81,6 +81,11 @@ energy_costs: energy-costs {
 	qcom,bark-time = <20000>;
 };
 
+&msm_gpu {
+	/* sdm636.dtsi defaults to A509, but X00TD has A512 tweaks */
+	qcom,chipid = <0x05010200>;
+};
+
 &mem_client_3_size {
 		/delete-property/ qcom,allocate-on-request;
 
