@@ -1,0 +1,22 @@
+<b><#selectbg_g>CHANGELOGS :</#></b>
+
+  <*> Bringup KnightWalker-ホタル-Hotaru</*>
+  <*> Rebased over aospa-sdm660 source</*>
+  <*> Reverted some changes</*>
+  <*> Merged Linux 4.19.222~242</*>
+  <*> Merged CLO LA.UM.10.2.1.r1-03600-sdm660.0</*>
+  <*> Added Earpiece Gain</*>
+  <*> Dropped ALMK and Patch RAM Support</*>
+  <*> ARM64: Added HDR Support</*>
+  <*> ARM64: Increased fcc-max-ua to 2300</*>
+  <*> Picked some changes from SkyWalker Source</*>
+  <*> More Changes, see on GitHub Commits</*>
+
+
+
+<b><#selectbg_g>NOTES :</#></b>
+
+  <*> Better to not use phone while charging.</*>
+  <*> Android 11 is Untested , IDK it's still boot or not.</*>
+  <*> Kernel need sometimes to settle.</*>
+  <*> For better results , Tweak with Kernel Manager or use Spectrum.</*>

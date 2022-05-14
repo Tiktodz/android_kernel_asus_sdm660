@@ -1,0 +1,31 @@
+KnightWalker 4.19.x Kernel Source
+====================================
+
+Getting Started
+---------------
+You can use this source if u Want , 
+
+Just Copy, Paste, Then Execute the command :)
+
+
+OverClocked Kernel
+------------------
+This Kernel is Overclocked. If u want go Back to Stock Freq, Do this:
+
+On Branch r1/s:
+```bash
+   git revert 4a7f851662030e753edcbb26bbafbad0ae698bb5 -n && \
+   git commit -m "Use Back Stock Freq"
+```
+
+Spectrum Support
+----------------
+Pick Spectrum Script from Here: https://github.com/RyuujiX/spectrum , then rename it to init.spectrum.rc
+
+Name: 4.19-xxxxxxxxx
+
+Or , make it by ur self .
+
+My CI Builder Script
+--------------------
+Check it out: https://github.com/RyuujiX/builder-xobod-r
