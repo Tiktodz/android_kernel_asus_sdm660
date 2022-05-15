@@ -723,7 +723,13 @@ static inline bool jump_queue(struct task_struct *tsk, struct rb_node *root)
 		if (tsk->human_task < MAX_LEVER)
 			jump = true;
 
-		tsk->human_task = jump ? ++tsk->human_task : 1;
+		if (!jump)
+			tsk->human_task = 1;
+		else {
+			int temp = tsk->human_task;
+
+			tsk->human_task = ++temp;
+		}
 	}
 
 out:
