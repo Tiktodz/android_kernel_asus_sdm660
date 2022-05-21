@@ -23,7 +23,7 @@
 #include <linux/freezer.h>
 #include <linux/page_owner.h>
 #include <linux/psi.h>
-#include <linux/msm_drm_notify.h>
+#include <linux/fb.h>
 #include <linux/moduleparam.h>
 #include <linux/time.h>
 #include <linux/workqueue.h>
@@ -1836,13 +1836,13 @@ module_param_named(compaction_screen_off_delay_ms,
 static unsigned long compaction_forced_timeout;
 
 
-static int msm_drm_notifier_callback(struct notifier_block *self,
+static int fb_notifier_callback(struct notifier_block *self,
 				       unsigned long event, void *data)
 {
-	struct msm_drm_notifier *evdata = data;
+	struct fb_event *evdata = data;
 	int *blank;
 
-	if (event != MSM_DRM_EVENT_BLANK && event != MSM_DRM_EARLY_EVENT_BLANK)
+	if (event != FB_EVENT_BLANK)
 		goto out;
 
 	if (!evdata || !evdata->data)
@@ -1850,9 +1850,7 @@ static int msm_drm_notifier_callback(struct notifier_block *self,
 
 	blank = evdata->data;
 	switch (*blank) {
-	case MSM_DRM_BLANK_POWERDOWN_CUST:
-	case MSM_DRM_BLANK_POWERDOWN:
-	case MSM_DRM_BLANK_NORMAL:
+	case FB_BLANK_POWERDOWN:
 		if (!screen_on)
 			goto out;
 		screen_on = false;
@@ -1862,7 +1860,7 @@ static int msm_drm_notifier_callback(struct notifier_block *self,
 					   msecs_to_jiffies(compaction_soff_delay_ms));
 		}
 		break;
-	case MSM_DRM_BLANK_UNBLANK_CUST:
+	case FB_BLANK_UNBLANK:
 		if (screen_on)
 			goto out;
 		screen_on = true;
@@ -1874,7 +1872,7 @@ out:
 }
 
 static struct notifier_block compaction_notifier_block = {
-	.notifier_call = msm_drm_notifier_callback,
+	.notifier_call = fb_notifier_callback,
 };
 
 /* Compact all zones within a node */
@@ -2233,8 +2231,6 @@ static int __init kcompactd_init(void)
 }
 subsys_initcall(kcompactd_init)
 
-extern struct drm_panel *lcd_active_panel;
-
 static int  __init scheduled_compaction_init(void)
 {
 	compaction_wq = create_freezable_workqueue("compaction_wq");
@@ -2244,10 +2240,7 @@ static int  __init scheduled_compaction_init(void)
 
 	INIT_DELAYED_WORK(&compaction_work, do_compaction);
 
-	if (lcd_active_panel) {
-		drm_panel_notifier_register(lcd_active_panel,
-					    &compaction_notifier_block);
-	}
+	fb_register_client(&compaction_notifier_block);
 
 	return 0;
 }
