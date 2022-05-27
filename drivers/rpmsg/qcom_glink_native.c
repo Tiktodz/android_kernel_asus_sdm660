@@ -18,10 +18,12 @@
 #include <linux/rpmsg.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
+#include <linux/termios.h>
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
 #include <linux/mailbox_client.h>
 #include <linux/ipc_logging.h>
+#include <linux/suspend.h>
 #include <soc/qcom/subsystem_notif.h>
 
 #include "rpmsg_internal.h"
@@ -29,31 +31,21 @@
 
 #define GLINK_LOG_PAGE_CNT 2
 #define GLINK_INFO(ctxt, x, ...)					  \
-do {									  \
-	if (ctxt)							  \
-		ipc_log_string(ctxt, "[%s]: "x, __func__, ##__VA_ARGS__); \
-} while (0)
+	ipc_log_string(ctxt, "[%s]: "x, __func__, ##__VA_ARGS__)
 
 #define CH_INFO(ch, x, ...)						     \
 do {									     \
-	if (ch->glink && ch->glink->ilc)				     \
+	if (ch->glink)							     \
 		ipc_log_string(ch->glink->ilc, "%s[%d:%d] %s: "x, ch->name,  \
 			       ch->lcid, ch->rcid, __func__, ##__VA_ARGS__); \
 } while (0)
-
-#define GLINK_ERR(ctxt, x, ...)						  \
-do {									  \
-	pr_err_ratelimited("[%s]: "x, __func__, ##__VA_ARGS__);		  \
-	if (ctxt)							  \
-		ipc_log_string(ctxt, "[%s]: "x, __func__, ##__VA_ARGS__); \
 
 #define CH_ERR(ch, x, ...)						     \
 do {									     \
 	if (ch->glink) {						     \
 		ipc_log_string(ch->glink->ilc, "%s[%d:%d] %s: "x, ch->name,  \
 			       ch->lcid, ch->rcid, __func__, ##__VA_ARGS__); \
-		dev_err_ratelimited(ch->glink->dev, "[%s]: "x, __func__,     \
-							##__VA_ARGS__);      \
+		dev_err_ratelimited(ch->glink->dev, "[%s]: "x, __func__, ##__VA_ARGS__); \
 	}								     \
 } while (0)
 
@@ -62,6 +54,10 @@ do {									     \
 
 #define RPM_GLINK_CID_MIN	1
 #define RPM_GLINK_CID_MAX	65536
+
+static int should_wake;
+int glink_resume_pkt;
+EXPORT_SYMBOL(glink_resume_pkt);
 
 struct glink_msg {
 	__le16 cmd;
@@ -170,6 +166,7 @@ struct qcom_glink {
 	bool sent_read_notify;
 
 	void *ilc;
+	struct cpumask cpu_mask;
 };
 
 enum {
@@ -201,8 +198,12 @@ enum {
  * @open_req:	completed once open-request has been received
  * @intent_req_lock: Synchronises multiple intent requests
  * @intent_req_result: Result of intent request
- * @intent_req_comp: Status of intent request completion
- * @intent_req_event: Waitqueue for @intent_req_comp
+ * @intent_req_acked: Status of intent request acknowledgment
+ * @intent_req_completed: Status of intent request completion
+ * @intent_req_ack: Waitqueue for @intent_req_acked
+ * @intent_req_comp: Waitqueue for @intent_req_completed
+ * @lsigs:	local side signals
+ * @rsigs:	remote side signals
  */
 struct glink_channel {
 	struct rpmsg_endpoint ept;
@@ -228,17 +229,19 @@ struct glink_channel {
 	int buf_offset;
 	int buf_size;
 
-	unsigned int lsigs;
-	unsigned int rsigs;
-
 	struct completion open_ack;
 	struct completion open_req;
 
 	struct mutex intent_req_lock;
 	bool intent_req_result;
 	bool channel_ready;
-	atomic_t intent_req_comp;
-	wait_queue_head_t intent_req_event;
+	atomic_t intent_req_acked;
+	atomic_t intent_req_completed;
+	wait_queue_head_t intent_req_ack;
+	wait_queue_head_t intent_req_comp;
+
+	unsigned int lsigs;
+	unsigned int rsigs;
 };
 
 #define to_glink_channel(_ept) container_of(_ept, struct glink_channel, ept)
@@ -263,6 +266,11 @@ static const struct rpmsg_endpoint_ops glink_endpoint_ops;
 
 #define GLINK_FEATURE_INTENTLESS	BIT(1)
 
+#define NATIVE_DTR_SIG			BIT(31)
+#define NATIVE_CTS_SIG			BIT(30)
+#define NATIVE_CD_SIG			BIT(29)
+#define NATIVE_RI_SIG			BIT(28)
+
 static void qcom_glink_rx_done_work(struct kthread_work *work);
 
 static struct glink_channel *qcom_glink_alloc_channel(struct qcom_glink *glink,
@@ -284,8 +292,10 @@ static struct glink_channel *qcom_glink_alloc_channel(struct qcom_glink *glink,
 
 	init_completion(&channel->open_req);
 	init_completion(&channel->open_ack);
-	atomic_set(&channel->intent_req_comp, 0);
-	init_waitqueue_head(&channel->intent_req_event);
+	atomic_set(&channel->intent_req_acked, 0);
+	atomic_set(&channel->intent_req_completed, 0);
+	init_waitqueue_head(&channel->intent_req_ack);
+	init_waitqueue_head(&channel->intent_req_comp);
 
 	INIT_LIST_HEAD(&channel->done_intents);
 	kthread_init_work(&channel->intent_work, qcom_glink_rx_done_work);
@@ -307,7 +317,11 @@ static void qcom_glink_channel_release(struct kref *ref)
 	int iid;
 
 	CH_INFO(channel, "\n");
-	wake_up(&channel->intent_req_event);
+	channel->intent_req_result = false;
+	atomic_inc(&channel->intent_req_acked);
+	wake_up(&channel->intent_req_ack);
+	atomic_inc(&channel->intent_req_completed);
+	wake_up(&channel->intent_req_comp);
 
 	/* cancel pending rx_done work */
 	kthread_cancel_work_sync(&channel->intent_work);
@@ -498,8 +512,8 @@ static void qcom_glink_handle_intent_req_ack(struct qcom_glink *glink,
 	}
 
 	channel->intent_req_result = granted;
-	atomic_inc(&channel->intent_req_comp);
-	wake_up(&channel->intent_req_event);
+	atomic_inc(&channel->intent_req_acked);
+	wake_up(&channel->intent_req_ack);
 	CH_INFO(channel, "\n");
 }
 
@@ -995,14 +1009,6 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 		/* Drop the message */
 		goto advance_rx;
 	}
-
-	if (!channel->ept.cb) {
-		dev_err(glink->dev,
-			"Callback not available on channel %s\n",
-			channel->name);
-		return -EAGAIN;
-	}
-
 	CH_INFO(channel, "chunk_size:%d left_size:%d\n", chunk_size, left_size);
 
 	if (glink->intentless) {
@@ -1103,7 +1109,7 @@ static void qcom_glink_handle_intent(struct qcom_glink *glink,
 		struct intent_pair intents[];
 	} __packed * msg;
 
-	const size_t msglen = sizeof(*msg) + sizeof(struct intent_pair) * count;
+	const size_t msglen = struct_size(msg, intents, count);
 	int ret;
 	int i;
 	unsigned long flags;
@@ -1145,8 +1151,10 @@ static void qcom_glink_handle_intent(struct qcom_glink *glink,
 
 		if (ret < 0)
 			dev_err(glink->dev, "failed to store remote intent\n");
-
 	}
+
+	atomic_inc(&channel->intent_req_completed);
+	wake_up(&channel->intent_req_comp);
 
 	kfree(msg);
 	qcom_glink_rx_advance(glink, ALIGN(msglen, 8));
@@ -1171,7 +1179,7 @@ static int qcom_glink_rx_open_ack(struct qcom_glink *glink, unsigned int lcid)
 }
 
 /**
- * qcom_glink_send_signals() - convert a signal  cmd to wire format and transmit
+ * qcom_glink_send_signals() - convert a signal cmd to wire format and transmit
  * @glink:	The transport to transmit on.
  * @channel:	The glink channel
  * @sigs:	The signals to encode.
@@ -1183,6 +1191,17 @@ static int qcom_glink_send_signals(struct qcom_glink *glink,
 				   u32 sigs)
 {
 	struct glink_msg msg;
+
+	/* convert signals from TIOCM to NATIVE */
+	sigs &= 0x0fff;
+	if (sigs & TIOCM_DTR)
+		sigs |= NATIVE_DTR_SIG;
+	if (sigs & TIOCM_RTS)
+		sigs |= NATIVE_CTS_SIG;
+	if (sigs & TIOCM_CD)
+		sigs |= NATIVE_CD_SIG;
+	if (sigs & TIOCM_RI)
+		sigs |= NATIVE_RI_SIG;
 
 	msg.cmd = cpu_to_le16(RPM_CMD_SIGNALS);
 	msg.param1 = cpu_to_le16(channel->lcid);
@@ -1208,12 +1227,25 @@ static int qcom_glink_handle_signals(struct qcom_glink *glink,
 	}
 
 	old = channel->rsigs;
+
+	/* convert signals from NATIVE to TIOCM */
+	if (signals & NATIVE_DTR_SIG)
+		signals |= TIOCM_DSR;
+	if (signals & NATIVE_CTS_SIG)
+		signals |= TIOCM_CTS;
+	if (signals & NATIVE_CD_SIG)
+		signals |= TIOCM_CD;
+	if (signals & NATIVE_RI_SIG)
+		signals |= TIOCM_RI;
+	signals &= 0x0fff;
+
 	channel->rsigs = signals;
 
-	if (channel->ept.sig_cb)
-		channel->ept.sig_cb(channel->ept.rpdev, old, channel->rsigs);
-
 	CH_INFO(channel, "old:%d new:%d\n", old, channel->rsigs);
+	if (channel->ept.sig_cb) {
+		channel->ept.sig_cb(channel->ept.rpdev, channel->ept.priv,
+				    old, channel->rsigs);
+	}
 
 	return 0;
 }
@@ -1228,6 +1260,11 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 	unsigned int cmd;
 	int ret = 0;
 
+	if (should_wake) {
+		pr_info("%s: %d triggered %s\n", __func__, irq, glink->irqname);
+		glink_resume_pkt = true;
+		pm_system_wakeup();
+	}
 	/* To wakeup any blocking writers */
 	wake_up_all(&glink->tx_avail_notify);
 
@@ -1512,7 +1549,8 @@ static int qcom_glink_request_intent(struct qcom_glink *glink,
 
 	mutex_lock(&channel->intent_req_lock);
 
-	atomic_set(&channel->intent_req_comp, 0);
+	atomic_set(&channel->intent_req_acked, 0);
+	atomic_set(&channel->intent_req_completed, 0);
 
 	cmd.id = RPM_CMD_RX_INTENT_REQ;
 	cmd.cid = channel->lcid;
@@ -1524,11 +1562,11 @@ static int qcom_glink_request_intent(struct qcom_glink *glink,
 	if (ret)
 		goto unlock;
 
-	ret = wait_event_timeout(channel->intent_req_event,
-				 atomic_read(&channel->intent_req_comp) ||
+	ret = wait_event_timeout(channel->intent_req_ack,
+				 atomic_read(&channel->intent_req_acked) ||
 				 atomic_read(&glink->in_reset), 10 * HZ);
 	if (!ret) {
-		dev_err(glink->dev, "intent request timed out\n");
+		dev_err(glink->dev, "intent request ack timed out\n");
 		ret = -ETIMEDOUT;
 	} else if (atomic_read(&glink->in_reset)) {
 		CH_INFO(channel, "ssr detected\n");
@@ -1587,6 +1625,25 @@ static int __qcom_glink_send(struct glink_channel *channel,
 				return -EBUSY;
 
 			ret = qcom_glink_request_intent(glink, channel, len);
+			if (ret < 0)
+				return ret;
+
+			/*Wait for intents to arrive*/
+			ret = wait_event_timeout(channel->intent_req_comp,
+				atomic_read(&channel->intent_req_completed) ||
+				atomic_read(&glink->in_reset), 10 * HZ);
+
+			if (!ret) {
+				dev_err(glink->dev,
+				    "intent request completion timed out\n");
+				ret = -ETIMEDOUT;
+			} else if (atomic_read(&glink->in_reset)) {
+				CH_INFO(channel, "ssr detected\n");
+				ret = -ECONNRESET;
+			} else {
+				ret = channel->intent_req_result ? 0 : -ECANCELED;
+			}
+
 			if (ret < 0)
 				return ret;
 		}
@@ -1651,21 +1708,36 @@ static int qcom_glink_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 	return __qcom_glink_send(channel, data, len, false);
 }
 
-static int qcom_glink_get_sigs(struct rpmsg_endpoint *ept,
-			       u32 *lsigs, u32 *rsigs)
+static int qcom_glink_get_sigs(struct rpmsg_endpoint *ept)
 {
 	struct glink_channel *channel = to_glink_channel(ept);
 
-	*lsigs = channel->lsigs;
-	*rsigs = channel->rsigs;
-
-	return 0;
+	return channel->rsigs;
 }
 
-static int qcom_glink_set_sigs(struct rpmsg_endpoint *ept, u32 sigs)
+static int qcom_glink_set_sigs(struct rpmsg_endpoint *ept, u32 set, u32 clear)
 {
 	struct glink_channel *channel = to_glink_channel(ept);
 	struct qcom_glink *glink = channel->glink;
+	u32 sigs = channel->lsigs;
+
+	if (set & TIOCM_DTR)
+		sigs |= TIOCM_DTR;
+	if (set & TIOCM_RTS)
+		sigs |= TIOCM_RTS;
+	if (set & TIOCM_CD)
+		sigs |= TIOCM_CD;
+	if (set & TIOCM_RI)
+		sigs |= TIOCM_RI;
+
+	if (clear & TIOCM_DTR)
+		sigs &= ~TIOCM_DTR;
+	if (clear & TIOCM_RTS)
+		sigs &= ~TIOCM_RTS;
+	if (clear & TIOCM_CD)
+		sigs &= ~TIOCM_CD;
+	if (clear & TIOCM_RI)
+		sigs &= ~TIOCM_RI;
 
 	channel->lsigs = sigs;
 
@@ -1705,8 +1777,8 @@ static const struct rpmsg_endpoint_ops glink_endpoint_ops = {
 	.destroy_ept = qcom_glink_destroy_ept,
 	.send = qcom_glink_send,
 	.trysend = qcom_glink_trysend,
-	.get_sigs = qcom_glink_get_sigs,
-	.set_sigs = qcom_glink_set_sigs,
+	.get_signals = qcom_glink_get_sigs,
+	.set_signals = qcom_glink_set_sigs,
 };
 
 static void qcom_glink_rpdev_release(struct device *dev)
@@ -1972,17 +2044,16 @@ static int qcom_glink_create_chrdev(struct qcom_glink *glink)
 static void qcom_glink_set_affinity(struct qcom_glink *glink, u32 *arr,
 				    size_t size)
 {
-	struct cpumask cpumask;
 	int i;
 
-	cpumask_clear(&cpumask);
+	cpumask_clear(&glink->cpu_mask);
 	for (i = 0; i < size; i++) {
 		if (arr[i] < num_possible_cpus())
-			cpumask_set_cpu(arr[i], &cpumask);
+			cpumask_set_cpu(arr[i], &glink->cpu_mask);
 	}
-	if (irq_set_affinity(glink->irq, &cpumask))
+	if (irq_set_affinity_hint(glink->irq, &glink->cpu_mask))
 		dev_err(glink->dev, "failed to set irq affinity\n");
-	if (sched_setaffinity(glink->task->pid, &cpumask))
+	if (set_cpus_allowed_ptr(glink->task, &glink->cpu_mask))
 		dev_err(glink->dev, "failed to set task affinity\n");
 }
 
@@ -2002,7 +2073,8 @@ static void qcom_glink_notif_reset(void *data)
 
 	spin_lock_irqsave(&glink->idr_lock, flags);
 	idr_for_each_entry(&glink->lcids, channel, cid) {
-		wake_up(&channel->intent_req_event);
+		wake_up(&channel->intent_req_ack);
+		wake_up(&channel->intent_req_comp);
 	}
 	spin_unlock_irqrestore(&glink->idr_lock, flags);
 }
@@ -2183,6 +2255,26 @@ void qcom_glink_native_unregister(struct qcom_glink *glink)
 	device_unregister(glink->dev);
 }
 EXPORT_SYMBOL_GPL(qcom_glink_native_unregister);
+
+static int qcom_glink_suspend_no_irq(struct device *dev)
+{
+	should_wake = true;
+
+	return 0;
+}
+
+static int qcom_glink_resume_no_irq(struct device *dev)
+{
+	should_wake = false;
+
+	return 0;
+}
+
+const struct dev_pm_ops glink_native_pm_ops = {
+	.suspend_noirq = qcom_glink_suspend_no_irq,
+	.resume_noirq = qcom_glink_resume_no_irq,
+};
+EXPORT_SYMBOL(glink_native_pm_ops);
 
 MODULE_DESCRIPTION("Qualcomm GLINK driver");
 MODULE_LICENSE("GPL v2");
