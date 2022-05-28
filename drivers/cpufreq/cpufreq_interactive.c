@@ -1360,6 +1360,7 @@ static int __init cpufreq_interactive_gov_init(void)
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 	struct interactive_cpu *icpu;
 	unsigned int cpu;
+	int ret = 0;
 
 	for_each_possible_cpu(cpu) {
 		icpu = &per_cpu(interactive_cpu, cpu);
@@ -1386,7 +1387,12 @@ static int __init cpufreq_interactive_gov_init(void)
 	/* wake up so the thread does not look hung to the freezer */
 	wake_up_process(speedchange_task);
 
-	return cpufreq_register_governor(CPU_FREQ_GOV_INTERACTIVE);
+	ret = cpufreq_register_governor(CPU_FREQ_GOV_INTERACTIVE);
+	if (ret) {
+		kthread_stop(speedchange_task);
+		put_task_struct(speedchange_task);
+	}
+	return ret;
 }
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_INTERACTIVE
