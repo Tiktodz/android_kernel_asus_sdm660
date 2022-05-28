@@ -18,7 +18,6 @@
 #include <linux/rpmsg.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
-#include <linux/termios.h>
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
 #include <linux/mailbox_client.h>
