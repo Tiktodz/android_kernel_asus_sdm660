@@ -266,11 +266,6 @@ static const struct rpmsg_endpoint_ops glink_endpoint_ops;
 
 #define GLINK_FEATURE_INTENTLESS	BIT(1)
 
-#define NATIVE_DTR_SIG			BIT(31)
-#define NATIVE_CTS_SIG			BIT(30)
-#define NATIVE_CD_SIG			BIT(29)
-#define NATIVE_RI_SIG			BIT(28)
-
 static void qcom_glink_rx_done_work(struct kthread_work *work);
 
 static struct glink_channel *qcom_glink_alloc_channel(struct qcom_glink *glink,
@@ -1192,17 +1187,6 @@ static int qcom_glink_send_signals(struct qcom_glink *glink,
 {
 	struct glink_msg msg;
 
-	/* convert signals from TIOCM to NATIVE */
-	sigs &= 0x0fff;
-	if (sigs & TIOCM_DTR)
-		sigs |= NATIVE_DTR_SIG;
-	if (sigs & TIOCM_RTS)
-		sigs |= NATIVE_CTS_SIG;
-	if (sigs & TIOCM_CD)
-		sigs |= NATIVE_CD_SIG;
-	if (sigs & TIOCM_RI)
-		sigs |= NATIVE_RI_SIG;
-
 	msg.cmd = cpu_to_le16(RPM_CMD_SIGNALS);
 	msg.param1 = cpu_to_le16(channel->lcid);
 	msg.param2 = cpu_to_le32(sigs);
@@ -1227,25 +1211,12 @@ static int qcom_glink_handle_signals(struct qcom_glink *glink,
 	}
 
 	old = channel->rsigs;
-
-	/* convert signals from NATIVE to TIOCM */
-	if (signals & NATIVE_DTR_SIG)
-		signals |= TIOCM_DSR;
-	if (signals & NATIVE_CTS_SIG)
-		signals |= TIOCM_CTS;
-	if (signals & NATIVE_CD_SIG)
-		signals |= TIOCM_CD;
-	if (signals & NATIVE_RI_SIG)
-		signals |= TIOCM_RI;
-	signals &= 0x0fff;
-
 	channel->rsigs = signals;
 
+	if (channel->ept.sig_cb)
+		channel->ept.sig_cb(channel->ept.rpdev, old, channel->rsigs);
+
 	CH_INFO(channel, "old:%d new:%d\n", old, channel->rsigs);
-	if (channel->ept.sig_cb) {
-		channel->ept.sig_cb(channel->ept.rpdev, channel->ept.priv,
-				    old, channel->rsigs);
-	}
 
 	return 0;
 }
@@ -1708,36 +1679,21 @@ static int qcom_glink_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 	return __qcom_glink_send(channel, data, len, false);
 }
 
-static int qcom_glink_get_sigs(struct rpmsg_endpoint *ept)
+static int qcom_glink_get_sigs(struct rpmsg_endpoint *ept,
+			       u32 *lsigs, u32 *rsigs)
 {
 	struct glink_channel *channel = to_glink_channel(ept);
 
-	return channel->rsigs;
+	*lsigs = channel->lsigs;
+	*rsigs = channel->rsigs;
+
+	return 0;
 }
 
-static int qcom_glink_set_sigs(struct rpmsg_endpoint *ept, u32 set, u32 clear)
+static int qcom_glink_set_sigs(struct rpmsg_endpoint *ept, u32 sigs)
 {
 	struct glink_channel *channel = to_glink_channel(ept);
 	struct qcom_glink *glink = channel->glink;
-	u32 sigs = channel->lsigs;
-
-	if (set & TIOCM_DTR)
-		sigs |= TIOCM_DTR;
-	if (set & TIOCM_RTS)
-		sigs |= TIOCM_RTS;
-	if (set & TIOCM_CD)
-		sigs |= TIOCM_CD;
-	if (set & TIOCM_RI)
-		sigs |= TIOCM_RI;
-
-	if (clear & TIOCM_DTR)
-		sigs &= ~TIOCM_DTR;
-	if (clear & TIOCM_RTS)
-		sigs &= ~TIOCM_RTS;
-	if (clear & TIOCM_CD)
-		sigs &= ~TIOCM_CD;
-	if (clear & TIOCM_RI)
-		sigs &= ~TIOCM_RI;
 
 	channel->lsigs = sigs;
 
@@ -1777,8 +1733,8 @@ static const struct rpmsg_endpoint_ops glink_endpoint_ops = {
 	.destroy_ept = qcom_glink_destroy_ept,
 	.send = qcom_glink_send,
 	.trysend = qcom_glink_trysend,
-	.get_signals = qcom_glink_get_sigs,
-	.set_signals = qcom_glink_set_sigs,
+	.get_sigs = qcom_glink_get_sigs,
+	.set_sigs = qcom_glink_set_sigs,
 };
 
 static void qcom_glink_rpdev_release(struct device *dev)
