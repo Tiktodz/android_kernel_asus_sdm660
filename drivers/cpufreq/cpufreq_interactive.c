@@ -135,6 +135,7 @@ struct interactive_cpu {
 	u64 loc_floor_val_time; /* per-cpu floor_validate_time */
 	u64 pol_hispeed_val_time; /* policy hispeed_validate_time */
 	u64 loc_hispeed_val_time; /* per-cpu hispeed_validate_time */
+	int cpu;
 };
 
 static DEFINE_PER_CPU(struct interactive_cpu, interactive_cpu);
@@ -1072,7 +1073,7 @@ static void update_util_handler(struct update_util_data *data, u64 time,
 				    jiffies;
 
 	icpu->work_in_progress = true;
-	irq_work_queue(&icpu->irq_work);
+	irq_work_queue_on(&icpu->irq_work, icpu->cpu);
 }
 
 static void gov_set_update_util(struct interactive_policy *ipolicy)
@@ -1278,6 +1279,7 @@ int cpufreq_interactive_start(struct cpufreq_policy *policy)
 		icpu->loc_floor_val_time = icpu->pol_floor_val_time;
 		icpu->pol_hispeed_val_time = icpu->pol_floor_val_time;
 		icpu->loc_hispeed_val_time = icpu->pol_floor_val_time;
+		icpu->cpu = cpu;
 
 		down_write(&icpu->enable_sem);
 		icpu->ipolicy = ipolicy;
