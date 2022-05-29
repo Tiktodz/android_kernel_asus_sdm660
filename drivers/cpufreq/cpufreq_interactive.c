@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/rwsem.h>
+#include <linux/sched/clock.h>
 #include <linux/sched/cpufreq.h>
 #include <linux/sched/rt.h>
 #include <linux/sched/task.h>
@@ -478,6 +479,8 @@ static void cpufreq_interactive_idle_end(void)
 {
 	struct interactive_cpu *icpu = &per_cpu(interactive_cpu,
 						smp_processor_id());
+						
+	unsigned long sampling_rate;
 
 	if (!down_read_trylock(&icpu->enable_sem))
 		return;
@@ -487,8 +490,12 @@ static void cpufreq_interactive_idle_end(void)
 		 * We haven't sampled load for more than sampling_rate time, do
 		 * it right now.
 		 */
-		if (time_after_eq(jiffies, icpu->next_sample_jiffies))
+		if (time_after_eq(jiffies, icpu->next_sample_jiffies)) {
+			sampling_rate = icpu->ipolicy->tunables->sampling_rate;
+			icpu->last_sample_time = local_clock();
+			icpu->next_sample_jiffies = usecs_to_jiffies(sampling_rate) + jiffies;
 			cpufreq_interactive_update(icpu);
+		}
 	}
 
 	up_read(&icpu->enable_sem);
