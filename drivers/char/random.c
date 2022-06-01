@@ -1043,7 +1043,7 @@ static void add_timer_randomness(struct timer_rand_state *state, unsigned int nu
 	 * If we're in a hard IRQ, add_interrupt_randomness() will be called
 	 * sometime after, so mix into the fast pool.
 	 */
-	if (in_hardirq()) {
+	if (in_irq()) {
 		fast_mix(this_cpu_ptr(&irq_randomness)->pool, entropy, num);
 	} else {
 		spin_lock_irqsave(&input_pool.lock, flags);
@@ -1093,7 +1093,7 @@ static void add_timer_randomness(struct timer_rand_state *state, unsigned int nu
 	 * close to the one in this function, we credit a full 64/64 bit per bit,
 	 * and then subtract one to account for the extra one added.
 	 */
-	if (in_hardirq())
+	if (in_irq())
 		this_cpu_ptr(&irq_randomness)->count += max(1u, bits * 64) - 1;
 	else
 		_credit_init_bits(bits);
