@@ -1,16 +1,15 @@
 
-  <*> Bringup KnightWalker-ホタル-Hotaru-X</*>
-  <*> Merged Linux 4.19.243~245</*>
-  <*> Updated Snapdragon Clang to 14.1.2</*>
-  <*> Fixed USB Debugging Crash</*>
-  <*> Fixed Sleep = Dead on some ROMs</*>
-  <*> Optimized and Tuned Scheduler</*>
-  <*> Tuned Devfreq Boost</*>
-  <*> ZRAM: Backport from Linux 5.15</*>
-  <*> mm: Add automatic compaction mechanism</*>
-  <*> netdev: Increase the size of the receive queue</*>
-  <*> tcp: Allow TCP Fast Open for both incoming & outgoing connections</*>
-  <*> More Changes, see on GitHub Commits</*>
+  <*> Bringup KnightWalker-ツバサ-Tsubasa</*>
+  <*> Merged Linux 4.19.246</*>
+  <*> Fixed CPU Temp Always Stuck at 37°C</*>
+  <*> Fixed Black Screen after ASUS Logo</*>
+  <*> Backported Interactive CPU Gov from Linux 4.14</*>
+  <*> Backported some drivers from Linux 5.4</*>
+  <*> Switched to PELT 16ms completely</*>
+  <*> Re-Enabled Polly Optimization with New Flags</*>
+  <*> Switched Back to SCHED_FIFO for Scheduler</*>
+  <*> msm: kgsl: use kmem_cache pool for draw objects</*>
+  <*> More Details, see on GitHub Commits</*>
 
 
 
