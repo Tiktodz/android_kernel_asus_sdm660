@@ -97,7 +97,6 @@ extern const char *f2fs_fault_name[FAULT_MAX];
 #define F2FS_MOUNT_RESERVE_ROOT		0x01000000
 #define F2FS_MOUNT_DISABLE_CHECKPOINT	0x02000000
 #define F2FS_MOUNT_NORECOVERY		0x04000000
-#define F2FS_MOUNT_MERGE_CHECKPOINT	0x10000000
 
 #define F2FS_OPTION(sbi)	((sbi)->mount_opt)
 #define clear_opt(sbi, option)	(F2FS_OPTION(sbi).opt &= ~F2FS_MOUNT_##option)
@@ -206,7 +205,6 @@ enum {
 #define DEF_MID_DISCARD_ISSUE_TIME	500	/* 500 ms, if device busy */
 #define DEF_MAX_DISCARD_ISSUE_TIME	60000	/* 60 s, if no candidates */
 #define DEF_DISCARD_URGENT_UTIL		80	/* do more discard over 80% */
-#define DEF_MAX_DISCARD_URGENT_ISSUE_TIME	10000	/* 10 s, if no candidates on high utilization */
 #define DEF_CP_INTERVAL			60	/* 60 secs */
 #define DEF_IDLE_INTERVAL		5	/* 5 secs */
 #define DEF_DISABLE_INTERVAL		5	/* 5 secs */
@@ -267,25 +265,6 @@ struct fsync_node_entry {
 	struct list_head list;	/* list head */
 	struct page *page;	/* warm node page pointer */
 	unsigned int seq_id;	/* sequence id */
-};
-
-struct ckpt_req {
-	struct completion wait;		/* completion for checkpoint done */
-	struct llist_node llnode;	/* llist_node to be linked in wait queue */
-	int ret;			/* return code of checkpoint */
-	ktime_t queue_time;		/* request queued time */
-};
-
-struct ckpt_req_control {
-	struct task_struct *f2fs_issue_ckpt;	/* checkpoint task */
-	wait_queue_head_t ckpt_wait_queue;	/* waiting queue for wake-up */
-	atomic_t issued_ckpt;		/* # of actually issued ckpts */
-	atomic_t total_ckpt;		/* # of total ckpts */
-	atomic_t queued_ckpt;		/* # of queued ckpts */
-	struct llist_head issue_list;	/* list for command issue */
-	spinlock_t stat_lock;		/* lock for below checkpoint time stats */
-	unsigned int cur_time;		/* cur wait time in msec for currently issued checkpoint */
-	unsigned int peak_time;		/* peak wait time in msec until now */
 };
 
 /* for the bitmap indicate blocks to be discarded */
@@ -627,8 +606,8 @@ enum {
 
 #define DEFAULT_RETRY_IO_COUNT	8	/* maximum retry read IO count */
 
-/* congestion wait timeout value, default: 6ms */
-#define	DEFAULT_IO_TIMEOUT	(msecs_to_jiffies(6))
+/* congestion wait timeout value, default: 20ms */
+#define	DEFAULT_IO_TIMEOUT	(msecs_to_jiffies(20))
 
 /* maximum retry quota flush count */
 #define DEFAULT_RETRY_QUOTA_FLUSH_COUNT		8
@@ -1452,13 +1431,11 @@ struct f2fs_sb_info {
 	struct inode *meta_inode;		/* cache meta blocks */
 	struct rw_semaphore cp_global_sem;	/* checkpoint procedure lock */
 	struct rw_semaphore cp_rwsem;		/* blocking FS operations */
-	struct rw_semaphore cp_quota_rwsem;    	/* blocking quota sync operations */
 	struct rw_semaphore node_write;		/* locking node writes */
 	struct rw_semaphore node_change;	/* locking node change */
 	wait_queue_head_t cp_wait;
 	unsigned long last_time[MAX_TIME];	/* to store time in jiffies */
 	long interval_time[MAX_TIME];		/* to store thresholds */
-	struct ckpt_req_control cprc_info;	/* for checkpoint request control */
 
 	struct inode_management im[MAX_INO_ENTRY];      /* manage inode cache */
 
@@ -1538,7 +1515,6 @@ struct f2fs_sb_info {
 	unsigned int cur_victim_sec;		/* current victim section num */
 	unsigned int gc_mode;			/* current GC state */
 	unsigned int next_victim_seg[2];	/* next segment in victim section */
-	unsigned int rapid_gc;			/* is rapid GC running */
 	/* for skip statistic */
 	unsigned int atomic_files;              /* # of opened atomic file */
 	unsigned long long skipped_atomic_files[2];	/* FG_GC and BG_GC */
@@ -1620,8 +1596,6 @@ struct f2fs_sb_info {
 
 	struct kmem_cache *inline_xattr_slab;	/* inline xattr entry */
 	unsigned int inline_xattr_slab_size;	/* default inline xattr slab size */
-
-	struct list_head list;
 };
 
 struct f2fs_private_dio {
@@ -1964,14 +1938,12 @@ static inline void f2fs_unlock_op(struct f2fs_sb_info *sbi)
 
 static inline void f2fs_lock_all(struct f2fs_sb_info *sbi)
 {
-	down_write(&sbi->cp_quota_rwsem);
 	down_write(&sbi->cp_rwsem);
 }
 
 static inline void f2fs_unlock_all(struct f2fs_sb_info *sbi)
 {
 	up_write(&sbi->cp_rwsem);
-	up_write(&sbi->cp_quota_rwsem);
 }
 
 static inline int __get_cp_reason(struct f2fs_sb_info *sbi)
@@ -3444,10 +3416,6 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc);
 void f2fs_init_ino_entry_info(struct f2fs_sb_info *sbi);
 int __init f2fs_create_checkpoint_caches(void);
 void f2fs_destroy_checkpoint_caches(void);
-int f2fs_issue_checkpoint(struct f2fs_sb_info *sbi);
-int f2fs_start_ckpt_thread(struct f2fs_sb_info *sbi);
-void f2fs_stop_ckpt_thread(struct f2fs_sb_info *sbi);
-void f2fs_init_ckpt_req_control(struct f2fs_sb_info *sbi);
 
 /*
  * data.c
@@ -3522,11 +3490,6 @@ void f2fs_destroy_post_read_wq(struct f2fs_sb_info *sbi);
  */
 int f2fs_start_gc_thread(struct f2fs_sb_info *sbi);
 void f2fs_stop_gc_thread(struct f2fs_sb_info *sbi);
-void f2fs_gc_sbi_list_add(struct f2fs_sb_info *sbi);
-void f2fs_gc_sbi_list_del(struct f2fs_sb_info *sbi);
-void __init f2fs_init_rapid_gc(void);
-void __exit f2fs_destroy_rapid_gc(void);
-
 block_t f2fs_start_bidx_of_node(unsigned int node_ofs, struct inode *inode);
 int f2fs_gc(struct f2fs_sb_info *sbi, bool sync, bool background,
 			unsigned int segno);
@@ -3566,8 +3529,6 @@ struct f2fs_stat_info {
 	int nr_discarding, nr_discarded;
 	int nr_discard_cmd;
 	unsigned int undiscard_blks;
-	int nr_issued_ckpt, nr_total_ckpt, nr_queued_ckpt;
-	unsigned int cur_ckpt_time, peak_ckpt_time;
 	int inline_xattr, inline_inode, inline_dir, append, update, orphans;
 	int compr_inode, compr_blocks;
 	int aw_cnt, max_aw_cnt, vw_cnt, max_vw_cnt;
