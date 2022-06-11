@@ -415,7 +415,7 @@ struct crng_state {
 	spinlock_t	lock;
 };
 
-static struct crng_state primary_crng = {
+struct crng_state primary_crng = {
 	.lock = __SPIN_LOCK_UNLOCKED(primary_crng.lock),
 };
 
