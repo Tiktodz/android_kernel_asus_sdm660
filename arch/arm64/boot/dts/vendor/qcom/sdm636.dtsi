@@ -11,6 +11,7 @@
  */
 
 #include "sdm660.dtsi"
+#include "sdm636-thermal.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. SDM 636";
