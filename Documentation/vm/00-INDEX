@@ -18,6 +18,8 @@ hwpoison.rst
 	- explains what hwpoison is
 ksm.rst
 	- how to use the Kernel Samepage Merging feature.
+uksm.txt
+	- Introduction to Ultra KSM
 mmu_notifier.rst
 	- a note about clearing pte/pmd and mmu notifications
 numa.rst
