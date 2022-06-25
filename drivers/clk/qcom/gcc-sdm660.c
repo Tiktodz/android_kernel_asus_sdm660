@@ -2770,7 +2770,7 @@ static struct platform_driver gcc_660_driver = {
 	.driver		= {
 		.name	= "gcc-sdm660",
 		.of_match_table = gcc_660_match_table,
-		.probe_type = PROBE_FORCE_SYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

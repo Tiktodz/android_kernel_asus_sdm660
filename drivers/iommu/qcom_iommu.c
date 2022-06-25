@@ -914,7 +914,7 @@ static struct platform_driver qcom_iommu_driver = {
 		.name		= "qcom-iommu",
 		.of_match_table	= of_match_ptr(qcom_iommu_of_match),
 		.pm		= &qcom_iommu_pm_ops,
-		.probe_type	= PROBE_FORCE_SYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe	= qcom_iommu_device_probe,
 	.remove	= qcom_iommu_device_remove,
