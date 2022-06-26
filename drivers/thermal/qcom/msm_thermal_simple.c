@@ -12,6 +12,10 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
+#include <linux/moduleparam.h>
+
+bool enabled = true;
+module_param(enabled, bool, 0664);
 
 #define OF_READ_U32(node, prop, dst)						\
 ({										\
@@ -209,6 +213,10 @@ static int msm_thermal_simple_probe(struct platform_device *pdev)
 {
 	struct thermal_drv *t;
 	int ret;
+	
+	/* Return if not enabled */
+	if (!enabled)
+		return 0;
 
 	t = kzalloc(sizeof(*t), GFP_KERNEL);
 	if (!t)
