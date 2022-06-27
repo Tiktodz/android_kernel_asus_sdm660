@@ -74,6 +74,9 @@
 #include <linux/oom.h>
 #include <linux/numa.h>
 #include <linux/sradix-tree.h>
+#ifdef CONFIG_UKSM_AUTO
+#include <linux/fb.h>
+#endif
 
 #include <asm/tlbflush.h>
 #include "internal.h"
@@ -569,6 +572,9 @@ static unsigned long long uksm_sleep_times;
 #define UKSM_RUN_STOP	0
 #define UKSM_RUN_MERGE	1
 static unsigned int uksm_run = 1;
+#ifdef CONFIG_UKSM_AUTO
+static unsigned int uksm_display_state = 1;
+#endif
 
 static DECLARE_WAIT_QUEUE_HEAD(uksm_thread_wait);
 static DEFINE_MUTEX(uksm_thread_mutex);
@@ -4991,6 +4997,35 @@ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
 }
 UKSM_ATTR(run);
 
+#ifdef CONFIG_UKSM_AUTO
+static ssize_t display_state_show(struct kobject *kobj, struct kobj_attribute *attr,
+			char *buf)
+{
+	return sprintf(buf, "%u\n", uksm_display_state);
+}
+
+static ssize_t display_state_store(struct kobject *kobj, struct kobj_attribute *attr,
+			 const char *buf, size_t count)
+{
+	unsigned long display_state;
+	int err;
+
+	err = kstrtoul(buf, 10, &display_state);
+	if (err || display_state > 1)
+		return -EINVAL;
+
+	if (display_state == 1)
+		display_state = 1;
+	else
+		display_state = 0;
+
+	uksm_display_state = display_state;
+
+	return count;
+}
+UKSM_ATTR(display_state);
+#endif
+
 static ssize_t abundant_threshold_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *buf)
 {
@@ -5280,6 +5315,9 @@ static struct attribute *uksm_attrs[] = {
 	&abundant_threshold_attr.attr,
 	&cpu_ratios_attr.attr,
 	&eval_intervals_attr.attr,
+#ifdef CONFIG_UKSM_AUTO
+	&display_state_attr.attr,
+#endif
 	NULL,
 };
 
@@ -5513,10 +5551,51 @@ struct page *ksm_might_need_to_copy(struct page *page,
 	return new_page;
 }
 
+#ifdef CONFIG_UKSM_AUTO
+static inline int get_notifier_callback(struct notifier_block *self,
+				       unsigned long event, void *data)
+{
+	struct fb_event *evdata = data;
+	int *blank;
+
+	if (event != FB_EVENT_BLANK)
+		goto out;
+	
+	if (uksm_display_state != 1)
+		goto out;
+
+	blank = evdata->data;
+	switch (*blank) {
+	case FB_BLANK_POWERDOWN:
+		uksm_run = 0;
+		pr_info("UKSM: Screen Off, Update uksm_run to 0\n");
+		break;
+	case FB_BLANK_UNBLANK:
+		uksm_run = 1;
+		pr_info("UKSM: Screen On, Update uksm_run to 1\n");
+		break;
+	}
+
+out:
+	return NOTIFY_OK;
+}
+
+static struct notifier_block get_notifier_block = {
+	.notifier_call = get_notifier_callback,
+};
+#endif
+
 static int __init uksm_init(void)
 {
 	struct task_struct *uksm_thread;
 	int err;
+	
+#ifdef CONFIG_UKSM_AUTO
+	err = fb_register_client(&get_notifier_block);
+	if (err) {
+		fb_unregister_client(&get_notifier_block);
+	}
+#endif
 
 	uksm_sleep_jiffies = msecs_to_jiffies(100);
 	uksm_sleep_saved = uksm_sleep_jiffies;

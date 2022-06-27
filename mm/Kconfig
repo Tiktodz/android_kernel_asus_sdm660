@@ -358,6 +358,12 @@ config UKSM
 	UKSM. Now UKSM has its first stable release and first real world enterprise user.
 	For more information, please goto its project page.
 	(github.com/dolohow/uksm)
+	
+config UKSM_AUTO
+	bool "AUTO UKSM using FB Notifier"
+	depends on UKSM
+	help
+		To Make UKSM Run when Screen On Only
 
 config KSM_LEGACY
 	bool "Legacy KSM implementation"
