@@ -16,6 +16,7 @@
 #include <linux/sched/cpufreq.h>
 #include <trace/events/power.h>
 #include <linux/sched/sysctl.h>
+#include <linux/string.h>
 
 #define IOWAIT_BOOST_MIN	(SCHED_CAPACITY_SCALE / 8)
 
@@ -711,6 +712,9 @@ static ssize_t up_rate_limit_us_store(struct gov_attr_set *attr_set,
 	struct sugov_policy *sg_policy;
 	unsigned int rate_limit_us;
 
+	if (!strncmp(current->comm, "init.qcom.post_", sizeof("init.qcom.post_")))
+		return count;
+	
 	if (kstrtouint(buf, 10, &rate_limit_us))
 		return -EINVAL;
 
@@ -731,6 +735,9 @@ static ssize_t down_rate_limit_us_store(struct gov_attr_set *attr_set,
 	struct sugov_policy *sg_policy;
 	unsigned int rate_limit_us;
 
+	if (!strncmp(current->comm, "init.qcom.post_", sizeof("init.qcom.post_")))
+		return count;
+	
 	if (kstrtouint(buf, 10, &rate_limit_us))
 		return -EINVAL;
 
