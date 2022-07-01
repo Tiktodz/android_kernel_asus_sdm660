@@ -241,10 +241,10 @@ static DEFINE_PER_CPU(int, distribute_cpu_mask_prev);
  *
  * Returns >= nr_cpu_ids if the intersection is empty.
  */
-int cpumask_any_and_distribute(const struct cpumask *src1p,
+unsigned int cpumask_any_and_distribute(const struct cpumask *src1p,
 			       const struct cpumask *src2p)
 {
-	int next, prev;
+	unsigned int next, prev;
 
 	/* NOTE: our first selection will skip 0. */
 	prev = __this_cpu_read(distribute_cpu_mask_prev);
@@ -260,9 +260,9 @@ int cpumask_any_and_distribute(const struct cpumask *src1p,
 }
 EXPORT_SYMBOL(cpumask_any_and_distribute);
 
-int cpumask_any_distribute(const struct cpumask *srcp)
+unsigned int cpumask_any_distribute(const struct cpumask *srcp)
 {
-	int next, prev;
+	unsigned int next, prev;
 
 	/* NOTE: our first selection will skip 0. */
 	prev = __this_cpu_read(distribute_cpu_mask_prev);
