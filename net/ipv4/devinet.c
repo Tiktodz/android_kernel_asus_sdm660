@@ -508,8 +508,10 @@ static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 		return ret;
 	}
 
-	if (!(ifa->ifa_flags & IFA_F_SECONDARY))
+	if (!(ifa->ifa_flags & IFA_F_SECONDARY)) {
+		prandom_seed((__force u32) ifa->ifa_local);
 		ifap = last_primary;
+	}
 
 	ifa->ifa_next = *ifap;
 	*ifap = ifa;
