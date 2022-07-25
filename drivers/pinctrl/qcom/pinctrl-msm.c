@@ -1483,7 +1483,7 @@ static void msm_pinctrl_resume(void)
 
 			pr_warn("%s: %d triggered %s\n", __func__, irq, name);
 #ifdef CONFIG_MACH_ASUS_SDM660
-			if ((irq == 247) || (irq == 265)) {
+			if (irq == 265) {
 				pr_info("%s: fingerprint triggered resume.\n", __func__);
 				g_resume_from_fp = 1;
 			}
