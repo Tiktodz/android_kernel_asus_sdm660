@@ -80,13 +80,13 @@ struct cdfinger_key_map {
 #define CDFINGER_ENABLE_IRQ            		_IOW(CDFINGER_IOCTL_MAGIC_NO, 27, uint8_t)
 
 /*if want change key value for event , do it*/
-#define CF_NAV_INPUT_UP						600
-#define CF_NAV_INPUT_DOWN					601
-#define CF_NAV_INPUT_LEFT					602
-#define CF_NAV_INPUT_RIGHT					603
-#define CF_NAV_INPUT_CLICK					604
-#define CF_NAV_INPUT_DOUBLE_CLICK			KEY_VOLUMEUP
-#define CF_NAV_INPUT_LONG_PRESS				605
+#define CF_NAV_INPUT_UP						FP_KEY_UP
+#define CF_NAV_INPUT_DOWN					FP_KEY_DOWN
+#define CF_NAV_INPUT_LEFT					FP_KEY_LEFT
+#define CF_NAV_INPUT_RIGHT					FP_KEY_RIGHT
+#define CF_NAV_INPUT_CLICK					FP_KEY_CLICK
+#define CF_NAV_INPUT_DOUBLE_CLICK			FP_KEY_DOUBLE_CLICK
+#define CF_NAV_INPUT_LONG_PRESS				FP_KEY_LONG_PRESS
 
 #define CF_KEY_INPUT_HOME					KEY_HOME
 #define CF_KEY_INPUT_MENU					KEY_MENU
