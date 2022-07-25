@@ -32,12 +32,6 @@ endif
 
 if MACH_ASUS_X00TD
 
-config COMMON_FP_X00TD
-    bool "Fingerprint common"
-	help
-		Say Y here if you use common fp.
-		If unsure, say N.
-
 config GOODIX_FP_X00TD
     bool "Fingerprint goodix"
 	help

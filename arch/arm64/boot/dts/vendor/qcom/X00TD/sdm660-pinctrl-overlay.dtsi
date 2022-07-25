@@ -71,48 +71,6 @@
 					};
 				};
 			};
-			
-			commonfp_reset_reset: commonfp_reset_reset {
-				mux {
-					pins = "gpio20";
-					function = "gpio";
-				};
-				
-				config {
-					pins = "gpio20";
-					drive-strength = <2>;
-					bias-disable = <0>;
-					output-low;
-				};
-			};
-
-			commonfp_reset_active: commonfp_reset_active {
-				mux {
-					pins = "gpio20";
-					function = "gpio";
-				};
-				
-				config {
-					pins = "gpio20";
-					drive-strength = <2>;
-					bias-disable = <0>;
-					output-high;
-				};
-			};
-
-			commonfp_irq_active: commonfp_irq_active {
-				mux {
-					pins = "gpio72";
-					function = "gpio";
-				};
-				
-				config {
-					pins = "gpio72";
-					drive-strength = <2>;
-					bias-disable = <0>;
-					input-enable;
-				};
-			};
 
 			psensor_irq {
 				psensor_int_active: psensor_int_active {
