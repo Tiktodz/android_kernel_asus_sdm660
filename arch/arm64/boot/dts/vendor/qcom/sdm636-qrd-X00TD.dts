@@ -88,22 +88,6 @@
 };
 
 &soc {
-	common_fp {
-		compatible = "common,fingerprint";
-		interrupt-parent = <&tlmm>;
-		interrupts = <72 0x0>;
-
-		common,gpio_reset = <&tlmm 20 0>;
-		common,gpio_irq = <&tlmm 72 0>;
-		common,gpio_vdd	= <&pm660l_gpios 5 0>;
-		pinctrl-names = "commonfp_reset_reset",
-				"commonfp_reset_active",
-				"commonfp_irq_active";
-		pinctrl-0 = <&commonfp_reset_reset>;
-		pinctrl-1 = <&commonfp_reset_active>;
-		pinctrl-2 = <&commonfp_irq_active>;
-	};
-
 	cdfinger_fp {
 		compatible = "cdfinger,fingerprint";
 		interrupt-parent = <&tlmm>;
@@ -120,6 +104,11 @@
 
 	goodix_fingerprint {
 		compatible = "goodix,fingerprint";
+		interrupt-parent = <&tlmm>;
+		interrupts = <72 0x0>;
+		goodix,reset_gpio = <&tlmm 20 0>;
+		goodix,gpio_vdd	= <&pm660l_gpios 5 0>;
+		goodix,irq_gpio	= <&tlmm 72 0>;
 	};
 };
 
