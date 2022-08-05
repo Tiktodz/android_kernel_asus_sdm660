@@ -475,7 +475,7 @@ struct fuse_conn {
 	/** Maximum write size */
 	unsigned max_write;
 
-	/** Maximum number of pages that can be used in a single request */
+	/** Maxmum number of pages that can be used in a single request */
 	unsigned int max_pages;
 
 	/** Input queue */
