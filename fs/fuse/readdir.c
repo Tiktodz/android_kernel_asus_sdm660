@@ -202,7 +202,7 @@ retry:
 		inode = d_inode(dentry);
 		if (!inode ||
 		    get_node_id(inode) != o->nodeid ||
-		    inode_wrong_type(inode, o->attr.mode)) {
+		    ((o->attr.mode ^ inode->i_mode) & S_IFMT)) {
 			d_invalidate(dentry);
 			dput(dentry);
 			goto retry;
