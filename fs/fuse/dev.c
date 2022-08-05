@@ -1601,7 +1601,7 @@ static int fuse_notify_store(struct fuse_conn *fc, unsigned int size,
 	end = outarg.offset + outarg.size;
 	if (end > file_size) {
 		file_size = end;
-		fuse_write_update_attr(inode, file_size, outarg.size);
+		fuse_write_update_attr(inode, file_size);
 	}
 
 	num = outarg.size;
