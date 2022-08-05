@@ -864,9 +864,7 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 			    u64 attr_valid, u64 attr_version);
 
 void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
-				   u64 attr_valid, u32 cache_mask);
-
-u32 fuse_get_cache_mask(struct inode *inode);
+				   u64 attr_valid);
 
 /**
  * Initialize the client device
