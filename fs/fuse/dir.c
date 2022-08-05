@@ -1021,9 +1021,11 @@ static int fuse_update_get_attr(struct inode *inode, struct file *file,
 	return err;
 }
 
-int fuse_update_attributes(struct inode *inode, struct file *file, u32 mask)
+int fuse_update_attributes(struct inode *inode, struct file *file)
 {
-	return fuse_update_get_attr(inode, file, NULL, mask, 0);
+	/* Do *not* need to get atime for internal purposes */
+	return fuse_update_get_attr(inode, file, NULL,
+				    STATX_BASIC_STATS & ~STATX_ATIME, 0);
 }
 
 int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
