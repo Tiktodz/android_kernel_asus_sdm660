@@ -361,7 +361,7 @@ unsigned long zone_reclaimable_pages(struct zone *zone)
 		u64 pages_min = min_filelist_kbytes >> (PAGE_SHIFT - 10);
 
 		pages_min *= zone->managed_pages;
-		do_div(pages_min, totalram_pages);
+		do_div(pages_min, totalram_pages());
 		if (nr < pages_min)
 			nr = 0;
 		else
