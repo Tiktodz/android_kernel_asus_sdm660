@@ -17,6 +17,14 @@
 bool enabled = true;
 module_param(enabled, bool, 0664);
 
+static unsigned int permanent_disabled = 0;
+static int __init disable_status(char *val)
+{
+	get_option(&val, &permanent_disabled);
+	return 0;
+}
+__setup("simple_thermal_disabled=", disable_status);
+
 #define OF_READ_U32(node, prop, dst)						\
 ({										\
 	int ret = of_property_read_u32(node, prop, &(dst));			\
@@ -274,6 +282,11 @@ static struct platform_driver msm_thermal_simple_device = {
 
 static int __init msm_thermal_simple_init(void)
 {
+	if (permanent_disabled > 0) {
+		pr_info_once(" disabled permanently");
+		return 0;
+	}
+	
 	return platform_driver_register(&msm_thermal_simple_device);
 }
 device_initcall(msm_thermal_simple_init);
