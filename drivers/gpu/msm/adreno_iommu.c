@@ -408,17 +408,21 @@ static int _set_ctxt_gpu(struct adreno_ringbuffer *rb,
 static int _set_pagetable_gpu(struct adreno_ringbuffer *rb,
 			struct kgsl_pagetable *new_pt)
 {
-	static unsigned int link[PAGE_SIZE / sizeof(unsigned int)]
-		____cacheline_aligned_in_smp;
 	struct adreno_device *adreno_dev = ADRENO_RB_DEVICE(rb);
-	unsigned int *count = link;
+	unsigned int *link = NULL, count;
 	int result;
 
-	/* If we are in a fault the MMU will be reset soon */
-	if (test_bit(ADRENO_DEVICE_FAULT, &adreno_dev->priv)) 
-		return 0;
+	link = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (link == NULL)
+		return -ENOMEM;
 
-	count = adreno_iommu_set_pt_generate_cmds(rb, count, new_pt);
+	/* If we are in a fault the MMU will be reset soon */
+	if (test_bit(ADRENO_DEVICE_FAULT, &adreno_dev->priv)) {
+		kfree(link);
+		return 0;
+	}
+
+	count = adreno_iommu_set_pt_generate_cmds(rb, link, new_pt);
 
 	WARN(count > (PAGE_SIZE / sizeof(unsigned int)),
 		"Temp command buffer overflow\n");
@@ -430,6 +434,7 @@ static int _set_pagetable_gpu(struct adreno_ringbuffer *rb,
 	result = adreno_ringbuffer_issue_internal_cmds(rb,
 			KGSL_CMD_FLAGS_PMODE, link, count);
 
+	kfree(link);
 	return result;
 }
 
