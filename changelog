@@ -1,38 +1,17 @@
-<b><#selectbg_g>August 8,2022</#></b>
 
-  <*> Bringup KnightWalker-ハヤト-Hayato-X</*>
-  <*> Fixed File Corruptions on Android 12</*>
-
-
-<b><#selectbg_g>July 2,2022</#></b>
-
-  <*> Bringup KnightWalker-ハヤト-Hayato</*>
-  <*> Merged Linux 4.19.247~248</*>
-  <*> Merged CLO LA.UM.10.2.r1-03800-sdm660.0 for Audio, Wifi, and Treewide</*>
-  <*> ARM64: sdm636: Recalculate Energy Model</*>
-  <*> Added Simple Thermal from msm-4.14 with Toggle</*>
-  <*> Switched to Simple Low Memory Killer</*>
-  <*> [OC] Re-Overclock CPU & GPU</*>
-  <*> Fixed IO Scheduler not change when switching spectrum profile</*>
+  <*> Bringup KnightWalker-アキオ-Akio</*>
+  <*> Merged Linux Google 4.19.249~254</*>
+  <*> Merged CLO LA.UM.10.2.r1-04000-sdm660.0 for Treewide</*>
+  <*> Compiled with Neutron Clang 16</*>
+  <*> Touch Latency Reduced</*>
+  <*> Added Toggle in Installer to disable Simple Thermal Permanently</*>
+  <*> Backported RW Semaphore</*>
+  <*> Backported Binder from android12-5.10-lts</*>
   <*> f2fs: Upstreamed from Google Source</*>
-  <*> f2fs/gc: Reduce GC thread urgent sleep time to 50ms</*>
-  <*> sdfat: Import v2.4.5 and use for VFAT</*>
-  <*> random: Switched to qcom-prng and disable SRANDOM</*>
-  <*> TCP: Enable ECN Negotiation by default</*>
-  <*> KSM: Switched to Ultra KSM, Tuned and Enabled by Default</*>
-  <*> ashmem: Rewrite to Improve clarity and performance</*>
-  <*> locking/osq: Use optimized spinning loop for arm64</*>
-  <*> sched{util,horizon}: Tuned Up and Down Rate Limit</*>
-  <*> Deep Sleep Improved</*>
-  <*> Migrated some Drivers Initialization to Asynchronous Probe</*>
-  <*> Completely disable CPU ISOLATION ( Fixed Unwanted Throttling )</*>
-  <*> drivers: Properly enable asus_lcd_early_unblank_func for X00TD</*>
-  <*> X00TD: cdfinger_fp: Update Driver from X01BD (Fix some issue)</*>
-  <*> X00TD: NVT_Touch: Update M & O Screen-Off Gestures Keycode and Debloat Driver</*>
-  <*> power: Use sec_access value from 4.4 kranul</*>
-  <*> crypto/lzo: Updated and Separated LZO-RLE</*>
-  <*> zram: Set LZO-RLE as default Compression Algorithm</*>
-  <*> AK3: Updated Magisk Tools to v25.1</*>
+  <*> f2fs: Set Low Memory Mode as default</*>
+  <*> drivers: input: fingerprint: Decommonize goodixfp from commonfp</*>
+  <*> Fixed QCOM_EARLY_RANDOM</*>
+  <*> random: Switched to HW_RANDOM_MSM_LEGACY</*>
   <*> More Details, see on GitHub Commits</*>
 
 
