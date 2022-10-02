@@ -1891,6 +1891,13 @@ if (((gesture_mode & 0x100) == 0) || ((gesture_mode & 0x0FF) == 0)) {
 	buf[0] = EVENT_MAP_HOST_CMD;
 	buf[1] = 0x11;
 	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
+
+	// Force deep sleep mode
+	nvt_set_page(I2C_FW_Address, 0x11a50);
+	buf[0] = 0x11a50 & 0xff;
+	buf[1] = 0x11;
+	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
+
 #ifdef NVT_POWER_SOURCE_CUST_EN		
 	nvt_lcm_power_source_ctrl(data, 0);
 	NVT_LOG("sleep suspend end  disable vsp/vsn\n");
@@ -1914,6 +1921,12 @@ else {
 	buf[0] = EVENT_MAP_HOST_CMD;
 	buf[1] = 0x11;
 	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
+	
+	nvt_set_page(I2C_FW_Address, 0x11a50);
+	buf[0] = 0x11a50 & 0xff;
+	buf[1] = 0x11;
+	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
+
 #endif // WAKEUP_GESTURE
 
 	mutex_unlock(&ts->lock);
