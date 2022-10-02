@@ -23,6 +23,7 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/uaccess.h>
+#include <linux/regulator/consumer.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
@@ -36,6 +37,14 @@
 #define NVTTOUCH_RST_PIN 980
 #define NVTTOUCH_INT_PIN 943
 
+#define NVT_POWER_SOURCE_CUST_EN  1
+//VSN,VSP
+#if NVT_POWER_SOURCE_CUST_EN
+#define LCM_LAB_MIN_UV                      6000000
+#define LCM_LAB_MAX_UV                      6000000
+#define LCM_IBB_MIN_UV                      6000000
+#define LCM_IBB_MAX_UV                      6000000
+#endif
 
 //---INT trigger mode---
 //#define IRQ_TYPE_EDGE_RISING 1
@@ -123,6 +132,12 @@ struct nvt_ts_data {
 	uint8_t xbuf[1025];
 	struct mutex xbuf_lock;
 	bool irq_enabled;
+#if NVT_POWER_SOURCE_CUST_EN
+	struct regulator *lcm_lab;
+	struct regulator *lcm_ibb;
+	atomic_t lcm_lab_power;
+	atomic_t lcm_ibb_power;
+#endif
 };
 
 #if NVT_TOUCH_PROC
