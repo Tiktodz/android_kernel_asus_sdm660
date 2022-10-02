@@ -37,11 +37,6 @@
 static struct kmem_cache *memobjs_cache;
 static struct kmem_cache *sparseobjs_cache;
 
-static struct kmem_cache *drawobj_sparse_cache;
-static struct kmem_cache *drawobj_sync_cache;
-static struct kmem_cache *drawobj_timeline_cache;
-static struct kmem_cache *drawobj_cmd_cache;
-
 static void syncobj_destroy_object(struct kgsl_drawobj *drawobj)
 {
 	struct kgsl_drawobj_sync *syncobj = SYNCOBJ(drawobj);
@@ -63,22 +58,22 @@ static void syncobj_destroy_object(struct kgsl_drawobj *drawobj)
 	}
 
 	kfree(syncobj->synclist);
-	kmem_cache_free(drawobj_sync_cache, syncobj);
+	kfree(syncobj);
 }
 
 static void cmdobj_destroy_object(struct kgsl_drawobj *drawobj)
 {
-	kmem_cache_free(drawobj_cmd_cache, CMDOBJ(drawobj));
+	kfree(CMDOBJ(drawobj));
 }
 
 static void timelineobj_destroy_object(struct kgsl_drawobj *drawobj)
 {
-	kmem_cache_free(drawobj_timeline_cache, TIMELINEOBJ(drawobj));
+	kfree(TIMELINEOBJ(drawobj));
 }
 
 static void sparseobj_destroy_object(struct kgsl_drawobj *drawobj)
 {
-	kmem_cache_free(drawobj_sparse_cache, SPARSEOBJ(drawobj));
+	kfree(SPARSEOBJ(drawobj));
 }
 
 void kgsl_drawobj_destroy_object(struct kref *kref)
@@ -845,7 +840,7 @@ kgsl_drawobj_timeline_create(struct kgsl_device *device,
 {
 	int ret;
 	struct kgsl_drawobj_timeline *timelineobj =
-		kmem_cache_zalloc(drawobj_timeline_cache, GFP_KERNEL);
+		kzalloc(sizeof(*timelineobj), GFP_KERNEL);
 
 	if (!timelineobj)
 		return ERR_PTR(-ENOMEM);
@@ -853,7 +848,7 @@ kgsl_drawobj_timeline_create(struct kgsl_device *device,
 	ret = drawobj_init(device, context, &timelineobj->base,
 		TIMELINEOBJ_TYPE);
 	if (ret) {
-		kmem_cache_free(drawobj_timeline_cache, timelineobj);
+		kfree(timelineobj);
 		return ERR_PTR(ret);
 	}
 
@@ -938,7 +933,7 @@ struct kgsl_drawobj_sparse *kgsl_drawobj_sparse_create(
 {
 	int ret;
 	struct kgsl_drawobj_sparse *sparseobj =
-			kmem_cache_zalloc(drawobj_sparse_cache, GFP_KERNEL);
+			kzalloc(sizeof(*sparseobj), GFP_KERNEL);
 
 	if (!sparseobj)
 		return ERR_PTR(-ENOMEM);
@@ -946,7 +941,7 @@ struct kgsl_drawobj_sparse *kgsl_drawobj_sparse_create(
 	ret = drawobj_init(device,
 		context, &sparseobj->base, SPARSEOBJ_TYPE);
 	if (ret) {
-		kmem_cache_free(drawobj_sparse_cache, sparseobj);
+		kfree(sparseobj);
 		return ERR_PTR(ret);
 	}
 
@@ -970,7 +965,7 @@ struct kgsl_drawobj_sync *kgsl_drawobj_sync_create(struct kgsl_device *device,
 		struct kgsl_context *context)
 {
 	struct kgsl_drawobj_sync *syncobj =
-		kmem_cache_zalloc(drawobj_sync_cache, GFP_KERNEL);
+		kzalloc(sizeof(*syncobj), GFP_KERNEL);
 	int ret;
 
 	if (!syncobj)
@@ -978,7 +973,7 @@ struct kgsl_drawobj_sync *kgsl_drawobj_sync_create(struct kgsl_device *device,
 
 	ret = drawobj_init(device, context, &syncobj->base, SYNCOBJ_TYPE);
 	if (ret) {
-		kmem_cache_free(drawobj_sync_cache, syncobj);
+		kfree(syncobj);
 		return ERR_PTR(ret);
 	}
 
@@ -1004,7 +999,7 @@ struct kgsl_drawobj_cmd *kgsl_drawobj_cmd_create(struct kgsl_device *device,
 		struct kgsl_context *context, unsigned int flags,
 		unsigned int type)
 {
-	struct kgsl_drawobj_cmd *cmdobj = kmem_cache_zalloc(drawobj_cmd_cache, GFP_KERNEL);
+	struct kgsl_drawobj_cmd *cmdobj = kzalloc(sizeof(*cmdobj), GFP_KERNEL);
 	int ret;
 
 	if (!cmdobj)
@@ -1013,7 +1008,7 @@ struct kgsl_drawobj_cmd *kgsl_drawobj_cmd_create(struct kgsl_device *device,
 	ret = drawobj_init(device, context, &cmdobj->base,
 		(type & (CMDOBJ_TYPE | MARKEROBJ_TYPE)));
 	if (ret) {
-		kmem_cache_free(drawobj_cmd_cache, cmdobj);
+		kfree(cmdobj);
 		return ERR_PTR(ret);
 	}
 
@@ -1444,26 +1439,14 @@ void kgsl_drawobjs_cache_exit(void)
 {
 	kmem_cache_destroy(memobjs_cache);
 	kmem_cache_destroy(sparseobjs_cache);
-	
-	kmem_cache_destroy(drawobj_sparse_cache);
-	kmem_cache_destroy(drawobj_sync_cache);
-	kmem_cache_destroy(drawobj_timeline_cache);
-	kmem_cache_destroy(drawobj_cmd_cache);
 }
 
 int kgsl_drawobjs_cache_init(void)
 {
-	memobjs_cache = KMEM_CACHE(kgsl_memobj_node, SLAB_HWCACHE_ALIGN);
-	sparseobjs_cache = KMEM_CACHE(kgsl_sparseobj_node, SLAB_HWCACHE_ALIGN);
+	memobjs_cache = KMEM_CACHE(kgsl_memobj_node, 0);
+	sparseobjs_cache = KMEM_CACHE(kgsl_sparseobj_node, 0);
 
-	drawobj_sparse_cache = KMEM_CACHE(kgsl_drawobj_sparse, SLAB_HWCACHE_ALIGN);
-	drawobj_sync_cache = KMEM_CACHE(kgsl_drawobj_sync, SLAB_HWCACHE_ALIGN);
-	drawobj_timeline_cache = KMEM_CACHE(kgsl_drawobj_timeline, SLAB_HWCACHE_ALIGN);
-	drawobj_cmd_cache = KMEM_CACHE(kgsl_drawobj_cmd, SLAB_HWCACHE_ALIGN);
-
-	if (!memobjs_cache || !sparseobjs_cache ||
-	    !drawobj_sparse_cache || !drawobj_sync_cache ||
-		!drawobj_timeline_cache || !drawobj_cmd_cache)
+	if (!memobjs_cache || !sparseobjs_cache)
 		return -ENOMEM;
 
 	return 0;
