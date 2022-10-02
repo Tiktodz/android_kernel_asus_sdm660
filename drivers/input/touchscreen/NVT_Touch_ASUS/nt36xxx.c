@@ -54,6 +54,126 @@ extern int32_t nvt_extra_proc_init(void);
 extern void nvt_extra_proc_deinit(void);
 #endif
 
+#if NVT_POWER_SOURCE_CUST_EN
+static int nvt_lcm_bias_power_init(struct nvt_ts_data *data)
+{
+	int ret;
+	data->lcm_lab = regulator_get(&data->client->dev, "lcm_lab");
+	if (IS_ERR(data->lcm_lab)){
+		ret = PTR_ERR(data->lcm_lab);
+		NVT_ERR("Regulator get failed lcm_lab ret=%d", ret);
+		goto _end;
+	}
+	if (regulator_count_voltages(data->lcm_lab)>0){
+		ret = regulator_set_voltage(data->lcm_lab, LCM_LAB_MIN_UV, LCM_LAB_MAX_UV);
+		if (ret){
+			NVT_ERR("Regulator set_vtg failed lcm_lab ret=%d", ret);
+			goto reg_lcm_lab_put;
+		}
+	}
+	data->lcm_ibb = regulator_get(&data->client->dev, "lcm_ibb");
+	if (IS_ERR(data->lcm_ibb)){
+		ret = PTR_ERR(data->lcm_ibb);
+		NVT_ERR("Regulator get failed lcm_ibb ret=%d", ret);
+		goto reg_set_lcm_lab_vtg;
+	}
+	if (regulator_count_voltages(data->lcm_ibb)>0){
+		ret = regulator_set_voltage(data->lcm_ibb, LCM_IBB_MIN_UV, LCM_IBB_MAX_UV);
+		if (ret){
+			NVT_ERR("Regulator set_vtg failed lcm_lab ret=%d", ret);
+			goto reg_lcm_ibb_put;
+		}
+	}
+	return 0;
+reg_lcm_ibb_put:
+	regulator_put(data->lcm_ibb);
+	data->lcm_ibb = NULL;
+reg_set_lcm_lab_vtg:
+	if (regulator_count_voltages(data->lcm_lab) > 0){
+		regulator_set_voltage(data->lcm_lab, 0, LCM_LAB_MAX_UV);
+	}
+reg_lcm_lab_put:
+	regulator_put(data->lcm_lab);
+	data->lcm_lab = NULL;
+_end:
+	return ret;
+}
+
+static int nvt_lcm_bias_power_deinit(struct nvt_ts_data *data)
+{
+	if (data-> lcm_ibb != NULL){
+		if (regulator_count_voltages(data->lcm_ibb) > 0){
+			regulator_set_voltage(data->lcm_ibb, 0, LCM_LAB_MAX_UV);
+		}
+		regulator_put(data->lcm_ibb);
+	}
+	if (data-> lcm_lab != NULL){
+		if (regulator_count_voltages(data->lcm_lab) > 0){
+			regulator_set_voltage(data->lcm_lab, 0, LCM_LAB_MAX_UV);
+		}
+		regulator_put(data->lcm_lab);
+	}
+	return 0;
+}
+
+
+static int nvt_lcm_power_source_ctrl(struct nvt_ts_data *data, int enable)
+{
+	int rc;
+
+	if (data->lcm_lab!= NULL && data->lcm_ibb!= NULL){
+		if (enable){
+			if (atomic_inc_return(&(data->lcm_lab_power)) == 1) {
+				rc = regulator_enable(data->lcm_lab);
+				if (rc) {
+					atomic_dec(&(data->lcm_lab_power));
+					NVT_ERR("Regulator lcm_lab enable failed rc=%d", rc);
+				}
+			}
+			else {
+				atomic_dec(&(data->lcm_lab_power));
+			}
+			if (atomic_inc_return(&(data->lcm_ibb_power)) == 1) {
+				rc = regulator_enable(data->lcm_ibb);
+				if (rc) {
+					atomic_dec(&(data->lcm_ibb_power));
+					NVT_ERR("Regulator lcm_ibb enable failed rc=%d", rc);
+				}
+			}
+			else {
+				atomic_dec(&(data->lcm_ibb_power));
+			}
+		}
+		else {
+			if (atomic_dec_return(&(data->lcm_lab_power)) == 0) {
+				rc = regulator_disable(data->lcm_lab);
+				if (rc)
+				{
+					atomic_inc(&(data->lcm_lab_power));
+					NVT_ERR("Regulator lcm_lab disable failed rc=%d", rc);
+				}
+			}
+			else{
+				atomic_inc(&(data->lcm_lab_power));
+			}
+			if (atomic_dec_return(&(data->lcm_ibb_power)) == 0) {
+				rc = regulator_disable(data->lcm_ibb);
+				if (rc)	{
+					atomic_inc(&(data->lcm_ibb_power));
+					NVT_ERR("Regulator lcm_ibb disable failed rc=%d", rc);
+				}
+			}
+			else{
+				atomic_inc(&(data->lcm_ibb_power));
+			}
+		}
+	}
+	else
+		NVT_ERR("Regulator lcm_ibb or lcm_lab is invalid");
+	return 0;
+}
+#endif
+
 #if NVT_TOUCH_MP
 extern int32_t nvt_mp_proc_init(void);
 extern void nvt_mp_proc_deinit(void);
@@ -85,25 +205,97 @@ const uint16_t touch_key_array[TOUCH_KEY_NUM] = {
 };
 #endif
 
+static uint8_t bTouchIsAwake = 0;
+
 #if WAKEUP_GESTURE
+#define GESTURE_EVENT_C 		KEY_TP_GESTURE_C
+#define GESTURE_EVENT_E 		KEY_TP_GESTURE_E
+#define GESTURE_EVENT_M			KEY_TP_GESTURE_M
+#define GESTURE_EVENT_O			KEY_TP_GESTURE_O
+#define GESTURE_EVENT_S 		KEY_TP_GESTURE_S
+#define GESTURE_EVENT_V 		KEY_TP_GESTURE_V
+#define GESTURE_EVENT_W 		KEY_TP_GESTURE_W
+#define GESTURE_EVENT_Z 		KEY_TP_GESTURE_Z
+#define GESTURE_EVENT_SWIPE_UP		KEY_TP_GESTURE_SWIPE_UP
+#define GESTURE_EVENT_SWIPE_DOWN	KEY_TP_GESTURE_SWIPE_DOWN
+#define GESTURE_EVENT_SWIPE_LEFT	KEY_TP_GESTURE_SWIPE_LEFT
+#define GESTURE_EVENT_SWIPE_RIGHT	KEY_TP_GESTURE_SWIPE_RIGHT
+#define GESTURE_EVENT_DOUBLE_CLICK	KEY_WAKEUP
+
 const uint16_t gesture_key_array[] = {
-	KEY_POWER,  //GESTURE_WORD_C
-	KEY_POWER,  //GESTURE_WORD_W
-	KEY_POWER,  //GESTURE_WORD_V
-	KEY_POWER,  //GESTURE_DOUBLE_CLICK
-	KEY_POWER,  //GESTURE_WORD_Z
-	KEY_POWER,  //GESTURE_WORD_M
-	KEY_POWER,  //GESTURE_WORD_O
-	KEY_POWER,  //GESTURE_WORD_e
-	KEY_POWER,  //GESTURE_WORD_S
-	KEY_POWER,  //GESTURE_SLIDE_UP
-	KEY_POWER,  //GESTURE_SLIDE_DOWN
-	KEY_POWER,  //GESTURE_SLIDE_LEFT
-	KEY_POWER,  //GESTURE_SLIDE_RIGHT
+	GESTURE_EVENT_C,  //GESTURE_WORD_C
+	GESTURE_EVENT_W,  //GESTURE_WORD_W
+	GESTURE_EVENT_V,  //GESTURE_WORD_V
+	GESTURE_EVENT_DOUBLE_CLICK,//GESTURE_DOUBLE_CLICK
+	GESTURE_EVENT_Z,  //GESTURE_WORD_Z
+	GESTURE_EVENT_M,  //GESTURE_WORD_M
+	GESTURE_EVENT_O,  //GESTURE_WORD_O
+	GESTURE_EVENT_E,  //GESTURE_WORD_E
+	GESTURE_EVENT_S,  //GESTURE_WORD_S
+	GESTURE_EVENT_SWIPE_UP,  //GESTURE_SLIDE_UP
+	GESTURE_EVENT_SWIPE_DOWN,  //GESTURE_SLIDE_DOWN
+	GESTURE_EVENT_SWIPE_LEFT,  //GESTURE_SLIDE_LEFT
+	GESTURE_EVENT_SWIPE_RIGHT,  //GESTURE_SLIDE_RIGHT
+};
+
+#define NVT_GESTURE_MODE "tpd_gesture"
+
+static long gesture_mode = 0;
+
+static ssize_t nvt_gesture_mode_get_proc(struct file *file,
+                        char __user *buffer, size_t size, loff_t *ppos)
+{
+	char ptr[64] = {0};
+	unsigned int len = 0;
+	unsigned int ret = 0;
+
+	if (gesture_mode == 0) {
+		len = sprintf(ptr, "0\n");
+	} else {
+		len = sprintf(ptr, "1\n");
+	}
+	ret = simple_read_from_buffer(buffer, size, ppos, ptr, (size_t)len);
+	return ret;
+}
+
+static ssize_t nvt_gesture_mode_set_proc(struct file *filp,
+                        const char __user *buffer, size_t count, loff_t *off)
+{
+	char msg[20] = {0};
+	int ret = 0;
+	if (!bTouchIsAwake) {
+		NVT_LOG("Touch is already sleep cant modify gesture node\n");
+		return count;
+	}
+	ret = copy_from_user(msg, buffer, count);
+	NVT_LOG("msg = %s\n", msg);
+	if (ret) {
+		return -EFAULT;
+	}
+
+	ret = kstrtol(msg, 0, &gesture_mode);
+	if (!ret) {
+		if (gesture_mode == 0) {
+			gesture_mode = 0;
+		} else {
+			gesture_mode = 0x1FF;
+		}
+	}
+	else {
+		NVT_ERR("set gesture mode failed\n");
+	}
+	NVT_LOG("gesture_mode = 0x%x\n", (unsigned int)gesture_mode);
+
+	return count;
+}
+
+static struct proc_dir_entry *nvt_gesture_mode_proc = NULL;
+static const struct file_operations gesture_mode_proc_ops = {
+	.owner = THIS_MODULE,
+	.read = nvt_gesture_mode_get_proc,
+	.write = nvt_gesture_mode_set_proc,
 };
 #endif
-
-static uint8_t bTouchIsAwake = 0;
 
 /*******************************************************
 Description:
@@ -119,11 +311,13 @@ static void nvt_irq_enable(bool enable)
 	if (enable) {
 		if (!ts->irq_enabled) {
 			enable_irq(ts->client->irq);
+			enable_irq_wake(ts->client->irq);
 			ts->irq_enabled = true;
 		}
 	} else {
 		if (ts->irq_enabled) {
 			disable_irq(ts->client->irq);
+			disable_irq_wake(ts->client->irq);
 			ts->irq_enabled = false;
 		}
 	}
@@ -672,6 +866,8 @@ static void nvt_flash_proc_deinit(void)
 /* function page definition */
 #define FUNCPAGE_GESTURE         1
 
+static struct wakeup_source *gesture_wakelock;
+
 /*******************************************************
 Description:
 	Novatek touchscreen wake up gesture key report function.
@@ -925,7 +1121,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 
 #if WAKEUP_GESTURE
 	if (bTouchIsAwake == 0) {
-		pm_wakeup_event(&ts->input_dev->dev, 5000);
+		__pm_wakeup_event(gesture_wakelock, msecs_to_jiffies(5000));
 	}
 #endif
 
@@ -956,6 +1152,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	if (bTouchIsAwake == 0) {
 		input_id = (uint8_t)(point_data[1] >> 3);
 		nvt_ts_wakeup_gesture_report(input_id, point_data);
+		nvt_irq_enable(true);
 		mutex_unlock(&ts->lock);
 		return IRQ_HANDLED;
 	}
@@ -1231,6 +1428,19 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	//---parse dts---
 	nvt_parse_dt(&client->dev);
 
+#if NVT_POWER_SOURCE_CUST_EN
+	atomic_set(&(ts->lcm_lab_power), 0);
+	atomic_set(&(ts->lcm_ibb_power), 0);
+	ret = nvt_lcm_bias_power_init(ts);
+
+	if (ret) {
+		NVT_ERR("power resource init error!\n");
+		goto err_power_resource_init_fail;
+	}
+
+	nvt_lcm_power_source_ctrl(ts, 1);
+#endif
+
 	//---request and config GPIOs---
 	ret = nvt_gpio_config(ts);
 	if (ret) {
@@ -1313,6 +1523,7 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	for (retry = 0; retry < ARRAY_SIZE(gesture_key_array); retry++) {
 		input_set_capability(ts->input_dev, EV_KEY, gesture_key_array[retry]);
 	}
+	gesture_wakelock = wakeup_source_register(NULL, "poll-wake-lock");
 #endif
 
 	snprintf(ts->phys, sizeof(ts->phys), "input/ts");
@@ -1394,6 +1605,14 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	if (ret != 0) {
 		NVT_ERR("nvt mp proc init failed. ret=%d\n", ret);
 		goto err_mp_proc_init_failed;
+	}
+#endif
+
+#if WAKEUP_GESTURE
+	nvt_gesture_mode_proc = proc_create(NVT_GESTURE_MODE, 0666, NULL,
+				&gesture_mode_proc_ops);
+	if (!nvt_gesture_mode_proc) {
+		NVT_ERR("create proc tpd_gesture failed\n");
 	}
 #endif
 
@@ -1492,6 +1711,11 @@ err_chipvertrim_failed:
 err_check_functionality_failed:
 	nvt_gpio_deconfig(ts);
 err_gpio_config_failed:
+#ifdef NVT_POWER_SOURCE_CUST_EN
+	nvt_lcm_power_source_ctrl(ts, 0);
+	nvt_lcm_bias_power_deinit(ts);
+#endif
+err_power_resource_init_fail:
 	i2c_set_clientdata(client, NULL);
 	if (ts) {
 		kfree(ts);
@@ -1636,6 +1860,7 @@ return:
 *******************************************************/
 static int32_t nvt_ts_suspend(struct device *dev)
 {
+	struct nvt_ts_data *data = dev_get_drvdata(dev);
 	uint8_t buf[4] = {0};
 #if MT_PROTOCOL_B
 	uint32_t i = 0;
@@ -1645,10 +1870,6 @@ static int32_t nvt_ts_suspend(struct device *dev)
 		NVT_LOG("Touch is already suspend\n");
 		return 0;
 	}
-
-#if !WAKEUP_GESTURE
-	nvt_irq_enable(false);
-#endif
 
 #if NVT_TOUCH_ESD_PROTECT
 	NVT_LOG("cancel delayed work sync\n");
@@ -1663,16 +1884,32 @@ static int32_t nvt_ts_suspend(struct device *dev)
 	bTouchIsAwake = 0;
 
 #if WAKEUP_GESTURE
-	//---write command to enter "wakeup gesture mode"---
+if (((gesture_mode & 0x100) == 0) || ((gesture_mode & 0x0FF) == 0)) {
+	nvt_irq_enable(false);
+
+	//---write i2c command to enter "deep sleep mode"---
+	buf[0] = EVENT_MAP_HOST_CMD;
+	buf[1] = 0x11;
+	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
+#ifdef NVT_POWER_SOURCE_CUST_EN		
+	nvt_lcm_power_source_ctrl(data, 0);
+	NVT_LOG("sleep suspend end  disable vsp/vsn\n");
+#endif	
+	NVT_LOG("Enter normal mode sleep \n");
+}
+else {
+	//---write i2c command to enter "wakeup gesture mode"---
 	buf[0] = EVENT_MAP_HOST_CMD;
 	buf[1] = 0x13;
 	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
 
-	enable_irq_wake(ts->client->irq);
-
+	nvt_irq_enable(true);
+	NVT_LOG("gesture suspend end not disable vsp/vsn\n");
 	NVT_LOG("Enabled touch wakeup gesture\n");
+}
 
 #else // WAKEUP_GESTURE
+	nvt_irq_enable(false);
 	//---write command to enter "deep sleep mode"---
 	buf[0] = EVENT_MAP_HOST_CMD;
 	buf[1] = 0x11;
@@ -1712,6 +1949,10 @@ return:
 *******************************************************/
 static int32_t nvt_ts_resume(struct device *dev)
 {
+#ifdef NVT_POWER_SOURCE_CUST_EN	
+	struct nvt_ts_data *data = dev_get_drvdata(dev);
+	nvt_lcm_power_source_ctrl(data, 1);//enable vsp/vsn
+#endif	
 	if (bTouchIsAwake) {
 		NVT_LOG("Touch is already resume\n");
 		return 0;
@@ -1725,17 +1966,13 @@ static int32_t nvt_ts_resume(struct device *dev)
 #if NVT_TOUCH_SUPPORT_HW_RST
 	gpio_set_value(ts->reset_gpio, 1);
 #endif
+	nvt_bootloader_reset();
+	nvt_check_fw_reset_state(RESET_STATE_REK);
 
-	// need to uncomment the following code for NT36672, NT36772 IC due to no boot-load when RESX/TP_RESX
-	//nvt_bootloader_reset();
-	if (nvt_check_fw_reset_state(RESET_STATE_REK)) {
-		NVT_ERR("FW is not ready! Try to bootloader reset...\n");
-		nvt_bootloader_reset();
-		nvt_check_fw_reset_state(RESET_STATE_REK);
+#if WAKEUP_GESTURE
+	if (((gesture_mode & 0x100) == 0) || ((gesture_mode & 0x0FF) == 0)) {
+		nvt_irq_enable(true);
 	}
-
-#if !WAKEUP_GESTURE
-	nvt_irq_enable(true);
 #endif
 
 #if NVT_TOUCH_ESD_PROTECT
@@ -1893,6 +2130,9 @@ return:
 ********************************************************/
 static void __exit nvt_driver_exit(void)
 {
+#ifdef NVT_POWER_SOURCE_CUST_EN	
+	nvt_lcm_bias_power_deinit(ts);
+#endif
 	i2c_del_driver(&nvt_i2c_driver);
 }
 
