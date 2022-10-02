@@ -1373,4 +1373,6 @@ source "drivers/input/touchscreen/hxchipset_X01BD/Kconfig"
 
 source "drivers/input/touchscreen/NVT_Touch_X00TD/Kconfig"
 
+source "drivers/input/touchscreen/NVT_Touch_ASUS/Kconfig"
+
 endif
