@@ -24,6 +24,7 @@
 #include <linux/input.h>
 #include <linux/uaccess.h>
 #include <linux/regulator/consumer.h>
+#include <uapi/linux/sched/types.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
