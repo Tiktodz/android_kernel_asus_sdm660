@@ -1026,8 +1026,10 @@ Description:
 return:
 	n.a.
 *******************************************************/
-static irqreturn_t nvt_ts_work_func(int irq, void *data)
+static void nvt_ts_worker(struct work_struct *work)
 {
+	struct nvt_ts_data *ts = container_of(work, struct nvt_ts_data, irq_work);
+
 	int32_t ret = -1;
 	uint8_t point_data[POINT_DATA_LEN + 1] = {0};
 	uint32_t position = 0;
@@ -1080,7 +1082,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 		nvt_ts_wakeup_gesture_report(input_id, point_data);
 		nvt_irq_enable(true);
 		mutex_unlock(&ts->lock);
-		return IRQ_HANDLED;
+		return;
 	}
 #endif
 
@@ -1178,6 +1180,15 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 XFER_ERROR:
 
 	mutex_unlock(&ts->lock);
+
+	return;
+}
+
+static irqreturn_t nvt_ts_work_func(int irq, void *data)
+{
+	struct nvt_ts_data *ts = data;
+
+	queue_work(ts->coord_workqueue, &ts->irq_work);
 
 	return IRQ_HANDLED;
 }
@@ -1509,6 +1520,13 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 			msecs_to_jiffies(NVT_TOUCH_ESD_CHECK_PERIOD));
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
+	ts->coord_workqueue = alloc_workqueue("nvt_ts_workqueue", WQ_HIGHPRI, 0);
+	if (!ts->coord_workqueue) {
+		ret = -ENOMEM;
+		goto err_create_nvt_ts_workqueue_failed;
+	}
+	INIT_WORK(&ts->irq_work, nvt_ts_worker);
+
 	//---set device node---
 #if NVT_TOUCH_PROC
 	ret = nvt_flash_proc_init();
@@ -1590,6 +1608,9 @@ err_register_fb_notif_failed:
 	unregister_early_suspend(&ts->early_suspend);
 err_register_early_suspend_failed:
 #endif
+err_create_nvt_ts_workqueue_failed:
+	if (ts->coord_workqueue)
+		destroy_workqueue(ts->coord_workqueue);
 #if NVT_TOUCH_MP
 nvt_mp_proc_deinit();
 err_mp_proc_init_failed:
@@ -1660,6 +1681,9 @@ return:
 static int32_t nvt_ts_remove(struct i2c_client *client)
 {
 	NVT_LOG("Removing driver...\n");
+	
+	if (ts->coord_workqueue)
+		destroy_workqueue(ts->coord_workqueue);
 
 #if defined(CONFIG_FB)
 #ifdef _MSM_DRM_NOTIFY_H_
