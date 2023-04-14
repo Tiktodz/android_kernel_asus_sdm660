@@ -1,15 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-&lpi_tlmm {
-	ter_mi2s_clk_active: ter_mi2s_clk_active {
-		mux {
-			pins = "gpio4";
-			function = "func4";
-		};
+&q6core {
+	lpi_tlmm: lpi_pinctrl@15070000 {
+		ter_mi2s_clk_active: ter_mi2s_clk_active {
+			mux {
+				pins = "gpio4";
+				function = "func4";
+			};
 
-		config {
-			pins = "gpio4";
-			drive-strength = <8>;
+			config {
+				pins = "gpio4";
+				drive-strength = <8>;
 		};
 	};
 
@@ -94,6 +95,7 @@
 		config {
 			pins = "gpio7";
 			drive-strength = <2>;
+			};
 		};
 	};
 };
