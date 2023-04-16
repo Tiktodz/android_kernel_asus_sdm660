@@ -17,6 +17,9 @@
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
 #include <linux/compat.h>
+#ifdef CONFIG_KSU
+#include <linux/ksu.h>
+#endif
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -175,7 +178,8 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
 	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
 
 #ifdef CONFIG_KSU
-	ksu_handle_stat(&dfd, &filename, &flags);
+	if (get_ksu_state() > 0)
+		ksu_handle_stat(&dfd, &filename, &flags);
 #endif
 
 	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
