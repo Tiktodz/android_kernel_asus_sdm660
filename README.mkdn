@@ -3,7 +3,9 @@ KnightWalker 4.19.x Kernel Source
 
 Getting Started
 ---------------
-You can use this source if u Want , 
+You can use this source if u Want ,
+
+Clone with `--recursive` option coz this source has submodule.
 
 Just Copy, Paste, Then Execute the command :)
 
@@ -17,6 +19,27 @@ On Branch r2/s:
    git revert 349b1fb219865bb0552d86b2172fd9372105bd2f -n && \
    git commit -m "Use Back Stock Freq"
 ```
+
+KernelSU
+--------
+KernelSU is implemented and enabled by default. If u don't want it...
+Just set `CONFIG_KSU=n` in defconfig or Add `kernelsu.enabled=0` into boot cmdline.
+
+Source: https://github.com/RyuujiX/KernelSU
+
+
+Using New Novatek Touchscreen Driver
+------------------------------------
+This source is still using original driver from 4.4 source... but, i have updated nvt driver and disabled
+coz it has problem for some touchscreen (Especially original screen). Working smoothly on mine with new driver
+
+Whatever, Gacha Phone.... If u want to use new driver, do this:
+
+On Branch r2/s:
+```bash
+   git cherry-pick 9cf0464c281016ee2d97598c532fdb7002d11981
+```
+
 
 Spectrum Support
 ----------------
