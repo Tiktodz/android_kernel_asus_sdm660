@@ -445,6 +445,7 @@ static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq)
 	int val, level = 0;
 	unsigned int scm_data[4];
 	int context_count = 0;
+	extern int refresh_rate_cus;
 #if 1
 	int last_level = priv->bin.last_level;
 //	int max_state_val = devfreq->profile->max_state - 1;
@@ -546,7 +547,12 @@ static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq)
 
 		scm_data[0] = level;
 		scm_data[1] = priv->bin.total_time;
-		scm_data[2] = priv->bin.busy_time;
+		
+		if (refresh_rate_cus > 60)
+			scm_data[2] = priv->bin.busy_time * refresh_rate_cus / 60;
+		else
+			scm_data[2] = priv->bin.busy_time;
+		
 		scm_data[3] = context_count;
 		__secure_tz_update_entry3(scm_data, sizeof(scm_data),
 					&val, sizeof(val), priv);
