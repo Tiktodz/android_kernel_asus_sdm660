@@ -30,6 +30,8 @@ extern void himax_chip_common_deinit(void);
 extern void himax_platform_shutdown(void);
 /* Huaqin add for ZQL1820-701 by zhangxiude at 2018/9/19 end */
 
+extern void hx_destroy_gesture_control(void);
+
 
 int himax_dev_set(struct himax_ts_data *ts)
 {
@@ -813,6 +815,9 @@ static int __init himax_common_init(void)
 
 static void __exit himax_common_exit(void)
 {
+#if HX_SMART_WAKEUP
+	hx_destroy_gesture_control();
+#endif
 	i2c_del_driver(&himax_common_driver);
 }
 
