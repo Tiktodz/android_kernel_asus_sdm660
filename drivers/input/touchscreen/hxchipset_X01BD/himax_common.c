@@ -207,65 +207,66 @@ bool FAKE_POWER_KEY_SEND = true;
 	#define HIMAX_PROC_HSEN_FILE "HSEN"
 	struct proc_dir_entry *himax_proc_HSEN_file = NULL;
 #endif
-/* Huaqin add for ZQL1820-701 by zhangxiude at 2018/9/19 start */
 #if defined(HX_SMART_WAKEUP)
-#define NVT_GESTURE_MODE "tpd_gesture"
+// Use for DT2W
+static int allow_hxwakeup = 1;
 
-static long gesture_mode = 0;
+#define DT2W_NODE dclicknode
 
-static ssize_t nvt_gesture_mode_get_proc(struct file *file,
-                        char __user *buffer, size_t size, loff_t *ppos)
+static struct kobject *hx_tp_kobject;
+
+// DT2W node
+static ssize_t hxwakeup_show(struct kobject *kobj, struct kobj_attribute *attr,
+                      char *buf)
 {
-	char ptr[64] = {0};
-	unsigned int len = 0;
-	unsigned int ret = 0;
-
-	if (gesture_mode == 0) {
-		len = sprintf(ptr, "0\n");
-	} else {
-		len = sprintf(ptr, "1\n");
-	}
-	ret = simple_read_from_buffer(buffer, size, ppos, ptr, (size_t)len);
-	return ret;
+        return sprintf(buf, "%d\n", allow_hxwakeup);
 }
 
-static ssize_t nvt_gesture_mode_set_proc(struct file *filp,
-                        const char __user *buffer, size_t count, loff_t *off)
+static ssize_t hxwakeup_store(struct kobject *kobj, struct kobj_attribute *attr,
+                      const char *buf, size_t count)
 {
-	int ret = 0;
-	struct himax_ts_data *ts = private_ts;
-	if (private_ts->suspended) {
-		I("Touch is already sleep cant modify gesture node\n");
-		return count;
-	}
+        sscanf(buf, "%du", &allow_hxwakeup);
 
-	ret = kstrtol_from_user(buffer, count, 0, &gesture_mode);
-	if (!ret) {
-		if (gesture_mode == 0) {
-			gesture_mode = 0;
-			ts->SMWP_enable = 0;
-		} else {
-			gesture_mode = 0x1FF;
-			ts->SMWP_enable = 1;
+		struct himax_ts_data *ts = private_ts;
+		if (private_ts->suspended) {
+			I("Touch is already sleep cant modify gesture node\n");
+			return count;
 		}
-	}
-	else {
-		E("set gesture mode failed\n");
-	}
-	g_core_fp.fp_set_SMWP_enable(ts->SMWP_enable, ts->suspended);
-	HX_SMWP_EN = ts->SMWP_enable;
-	I("gesture_mode = 0x%x\n", (unsigned int)gesture_mode);
-	I("%s: SMART_WAKEUP_enable = %d.\n", __func__, HX_SMWP_EN);
-
-	return count;
+		
+		if (allow_hxwakeup == 0)
+			ts->SMWP_enable = 0;
+		else
+			ts->SMWP_enable = 1;
+		
+		g_core_fp.fp_set_SMWP_enable(ts->SMWP_enable, ts->suspended);
+		HX_SMWP_EN = ts->SMWP_enable;
+		I("%s: SMART_WAKEUP_enable = %d.\n", __func__, HX_SMWP_EN);
+		
+        return count;
 }
 
-static struct proc_dir_entry *nvt_gesture_mode_proc = NULL;
-static const struct file_operations gesture_mode_proc_ops = {
-	.owner = THIS_MODULE,
-	.read = nvt_gesture_mode_get_proc,
-	.write = nvt_gesture_mode_set_proc,
-};
+static struct kobj_attribute hxwakeup_attribute = __ATTR(DT2W_NODE, 0664, hxwakeup_show,
+                                                   hxwakeup_store);
+
+// Create tp sysfs nodes
+void hx_create_tp_nodes(void) {
+	int hx_create_dt2w_node = 0;
+
+        hx_tp_kobject = kobject_create_and_add("touchpanel",
+                                                 kernel_kobj);
+        if(!hx_tp_kobject)
+        	E(" Failed to create tp node \n");
+
+        I(" Gesture Node initialized successfully \n");
+
+        hx_create_dt2w_node = sysfs_create_file(hx_tp_kobject, &hxwakeup_attribute.attr);
+        if (hx_create_dt2w_node)
+                E(" failed to create the dclicknode file in /sys/kernel/touchpanel \n");
+}
+
+void hx_destroy_gesture_control(void) {
+	kobject_put(hx_tp_kobject);
+}
 #endif
 
 #if NVT_POWER_SOURCE_CUST_EN
@@ -1392,7 +1393,7 @@ static int himax_ts_work_status(struct himax_ts_data *ts)
 
 #ifdef HX_SMART_WAKEUP
 /* Huaqin modify for HX by limengxia at 2018/11/07 start */
-	if (atomic_read(&ts->suspend_mode) && ! (((gesture_mode & 0x100) == 0) || ((gesture_mode & 0x0FF) == 0)) && (!hx_touch_data->diag_cmd))
+	if (atomic_read(&ts->suspend_mode) && ! (!allow_hxwakeup) && (!hx_touch_data->diag_cmd))
 /* Huaqin modify for HX by limengxia at 2018/11/07 end */
 	        result = HX_REPORT_SMWP_EVENT;
 #endif
@@ -2630,16 +2631,8 @@ FW_force_upgrade:
 	firmware_id=ic_data->vendor_config_ver;
 	himax_tp_info_proc_init();
 	/* Huaqin add by zhangxiude for ITO test end */
-/* Huaqin add for ZQL1820-701 by zhangxiude at 2018/9/19 start */
 #ifdef HX_SMART_WAKEUP
-	nvt_gesture_mode_proc = proc_create(NVT_GESTURE_MODE, 0666, NULL,
-				&gesture_mode_proc_ops);
-	if (!nvt_gesture_mode_proc) {
-		E("create proc tpd_gesture failed\n");
-	}
-#endif
-/* Huaqin add for ZQL1820-701 by zhangxiude at 2018/9/19 end */
-#ifdef HX_SMART_WAKEUP
+	hx_create_tp_nodes();
 	ts->SMWP_enable = 0;
 	ts->ts_SMWP_wake_lock = wakeup_source_register(NULL, "HIMAX_common_NAME");
 #endif
@@ -2819,7 +2812,7 @@ int himax_chip_common_suspend(struct himax_ts_data *ts)
 #endif
 #ifdef HX_SMART_WAKEUP
 /* Huaqin add for ZQL1820-701 by zhangxiude at 2018/9/19 start */
-	if (((gesture_mode & 0x100) == 0) || ((gesture_mode & 0x0FF) == 0)) {
+	if (!allow_hxwakeup) {
 	}else{
 /* Huaqin add for ZQL1820-701 by zhangxiude at 2018/9/19 end */
 		atomic_set(&ts->suspend_mode, 1);
@@ -2849,7 +2842,7 @@ int himax_chip_common_suspend(struct himax_ts_data *ts)
 	}
 /* Huaqin add for ZQL1820-701 by zhangxiude at 2018/9/19 start */
 #if NVT_POWER_SOURCE_CUST_EN
-		if (((gesture_mode & 0x100) == 0) || ((gesture_mode & 0x0FF) == 0)) {
+		if (!allow_hxwakeup) {
 		nvt_lcm_power_source_ctrl(private_ts, 0);//disable vsp/vsn
 		I("sleep suspend end	disable vsp/vsn\n");
 		}
@@ -2912,7 +2905,7 @@ int himax_chip_common_resume(struct himax_ts_data *ts)
 	g_core_fp.fp_resume_ic_action();
 
 /* Huaqin add for ZQL1820-701 by zhangxiude at 2018/9/19 start */
-if (((gesture_mode & 0x100) == 0) || ((gesture_mode & 0x0FF) == 0)) {
+if (!allow_hxwakeup) {
 	himax_int_enable(1);
 }
 /* Huaqin add for ZQL1820-701 by zhangxiude at 2018/9/19 end */

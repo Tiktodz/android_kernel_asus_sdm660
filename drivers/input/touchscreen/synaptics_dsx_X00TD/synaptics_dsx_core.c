@@ -162,8 +162,6 @@
 #define GESTURE_EVENT_Z 		KEY_TP_GESTURE_Z
 #define GESTURE_EVENT_SWIPE_UP 		KEY_TP_GESTURE_SWIPE_UP
 #define GESTURE_EVENT_DOUBLE_CLICK 	KEY_WAKEUP
-
-#define SYNA_GESTURE_MODE 		"tpd_gesture"
 /* Huaqin modify for ZQL1650-1523 by diganyun at 2018/06/07 end */
 
 static int synaptics_rmi4_check_status(struct synaptics_rmi4_data *rmi4_data,
@@ -1104,58 +1102,87 @@ static ssize_t synaptics_rmi4_virtual_key_map_show(struct kobject *kobj,
 	return count;
 }
 
-/* Huaqin modify  for ZQL1650-1523 by diganyun at 2018/06/07 start */
-
-long syna_gesture_mode = 0;
+long syna_gesture_mode;
 struct synaptics_rmi4_data *syna_rmi4_data;
 
-static ssize_t syna_gesture_mode_get_proc(struct file *file,
-                        char __user *buffer, size_t size, loff_t *ppos)
-{
-	char ptr[64];
-	unsigned int len = 0;
-	unsigned int ret = 0;
+static int allow_gesture = 1;
+static int screen_gesture = 0;
+static struct kobject *gesture_kobject;
 
-	if (syna_gesture_mode == 0) {
-		len = sprintf(ptr, "0\n");
-	} else {
-		len = sprintf(ptr, "1\n");
-	}
-	ret = simple_read_from_buffer(buffer, size, ppos, ptr, (size_t)len);
-	return ret;
+static ssize_t gesture_show(struct kobject *kobj, struct kobj_attribute *attr,
+                      char *buf)
+{
+        return sprintf(buf, "%d\n", allow_gesture);
 }
 
-static ssize_t syna_gesture_mode_set_proc(struct file *filp,
-                        const char __user *buffer, size_t count, loff_t *off)
+static ssize_t gesture_store(struct kobject *kobj, struct kobj_attribute *attr,
+                      const char *buf, size_t count)
 {
-	int ret = 0;
-
-	ret = kstrtol_from_user(buffer, count, 0, &syna_gesture_mode);
-	if (!ret) {
-		if (syna_gesture_mode == 0) {
-			syna_gesture_mode = 0;
-			syna_rmi4_data->enable_wakeup_gesture = 0;
-		} else {
-			syna_gesture_mode = 0x1FF;
-			syna_rmi4_data->enable_wakeup_gesture = 1;
-		}
-	}
-	else {
-		pr_err("set gesture mode failed\n");
+        sscanf(buf, "%du", &allow_gesture);
+	if (allow_gesture == 0) {
+		syna_gesture_mode = 0;
+		syna_rmi4_data->enable_wakeup_gesture = 0;
+	} else {
+		syna_gesture_mode = 0x1FF;
+		syna_rmi4_data->enable_wakeup_gesture = 1;
 	}
 	pr_err("syna_gesture_mode = 0x%x, enable_wakeup_gesture = %d \n", (unsigned int)syna_gesture_mode, syna_rmi4_data->enable_wakeup_gesture);
-
-	return count;
+        return count;
 }
 
-static struct proc_dir_entry *syna_gesture_mode_proc = NULL;
-static const struct file_operations syna_gesture_mode_proc_ops = {
-	.owner = THIS_MODULE,
-	.read = syna_gesture_mode_get_proc,
-	.write = syna_gesture_mode_set_proc,
-};
+static struct kobj_attribute gesture_attribute = __ATTR(dclicknode, 0664, gesture_show,
+                                                   gesture_store);
 
-/* Huaqin modify  for ZQL1650-1523 by diganyun at 2018/06/07 end */
+static ssize_t screengesture_show(struct kobject *kobj, struct kobj_attribute *attr,
+                      char *buf)
+{
+        return sprintf(buf, "%d\n", screen_gesture);
+}
+
+static ssize_t screengesture_store(struct kobject *kobj, struct kobj_attribute *attr,
+                      const char *buf, size_t count)
+{
+        sscanf(buf, "%du", &screen_gesture);
+	if (screen_gesture == 0) {
+		syna_gesture_mode = 0;
+		syna_rmi4_data->enable_wakeup_gesture = 0;
+	} else {
+		syna_gesture_mode = 0x1FF;
+		syna_rmi4_data->enable_wakeup_gesture = 1;
+	}
+	pr_err("syna_gesture_mode = 0x%x, enable_wakeup_gesture = %d \n", (unsigned int)syna_gesture_mode, syna_rmi4_data->enable_wakeup_gesture);
+        return count;
+}
+
+static struct kobj_attribute screengesture_attribute = __ATTR(gesture_node, 0664, screengesture_show,
+                                                   screengesture_store);
+
+int create_gesture_node_syna(void) {
+	int error = 0, error2 = 0;
+
+        gesture_kobject = kobject_create_and_add("touchpanel",
+                                                 kernel_kobj);
+        if(!gesture_kobject)
+                return -ENOMEM;
+
+        pr_err("[Syna-ts] : Gesture Node initialized successfully \n");
+
+        error = sysfs_create_file(gesture_kobject, &gesture_attribute.attr);
+        if (error) {
+                pr_err("[Syna-ts] : failed to create the gesture_node file in /sys/kernel/touchpanel \n");
+        }
+
+        error2 = sysfs_create_file(gesture_kobject, &screengesture_attribute.attr);
+        if (error) {
+                pr_err("[Syna-ts] : failed to create the gesture_node file in /sys/kernel/touchpanel \n");
+        }
+
+        return error;
+}
+
+void destroy_gesture_syna(void) {
+	kobject_put(gesture_kobject);
+}
 
 static void synaptics_rmi4_f11_wg(struct synaptics_rmi4_data *rmi4_data,
 		bool enable)
@@ -4533,7 +4560,7 @@ int syna_test_node_init(struct platform_device *tpinfo_device)
 
 static int synaptics_rmi4_probe(struct platform_device *pdev)
 {
-	int retval;
+	int retval, er = 0;
 	unsigned char attr_count;
 	struct synaptics_rmi4_data *rmi4_data;
 	const struct synaptics_dsx_hw_interface *hw_if;
@@ -4725,14 +4752,8 @@ static int synaptics_rmi4_probe(struct platform_device *pdev)
 	platform_device_register(&hwinfo_device);
 	syna_test_node_init(&hwinfo_device);
 /* Huaqin add by diganyun for ITO test 2018/05/23 end */
-/* Huaqin modify  for ZQL1650-1523 by diganyun at 2018/06/07 start */
-		syna_gesture_mode_proc = proc_create(SYNA_GESTURE_MODE, 0666, NULL,
-					&syna_gesture_mode_proc_ops);
-		if (!syna_gesture_mode_proc) {
-			pr_err("create proc tpd_gesture failed\n");
-		}
-/* Huaqin modify  for ZQL1650-1523 by diganyun at 2018/06/07 end */
 
+	er = create_gesture_node_syna();
 
 	rmi4_data->rb_workqueue =
 			create_singlethread_workqueue("dsx_rebuild_workqueue");
@@ -5175,6 +5196,7 @@ static int __init synaptics_rmi4_init(void)
 static void __exit synaptics_rmi4_exit(void)
 {
 	platform_driver_unregister(&synaptics_rmi4_driver);
+	destroy_gesture_syna();
 
 	synaptics_rmi4_bus_exit_X00TD();
 
