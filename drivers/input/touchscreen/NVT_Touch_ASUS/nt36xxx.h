@@ -30,6 +30,10 @@
 #include <linux/earlysuspend.h>
 #endif
 
+#if defined(CONFIG_TOUCHSCREEN_NT36xxx) || defined(CONFIG_TOUCHSCREEN_NT36xxx_X00TD)
+#include <linux/nvtouch.h>
+#endif
+
 #include "nt36xxx_mem_map.h"
 
 #define NVT_DEBUG 0

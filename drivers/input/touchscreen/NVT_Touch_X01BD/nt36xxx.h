@@ -30,6 +30,10 @@
 #include <linux/earlysuspend.h>
 #endif
 
+#ifdef CONFIG_TOUCHSCREEN_NT36xxx_ASUS
+#include <linux/nvtouch.h>
+#endif
+
 #include "nt36xxx_mem_map.h"
 
 #define NVT_DEBUG 0

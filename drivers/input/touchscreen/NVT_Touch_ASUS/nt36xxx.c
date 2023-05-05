@@ -2095,6 +2095,11 @@ static int32_t __init nvt_driver_init(void)
 {
 	int32_t ret = 0;
 
+#if defined(CONFIG_TOUCHSCREEN_NT36xxx) || defined(CONFIG_TOUCHSCREEN_NT36xxx_X00TD)
+	if (get_new_nvtouch() < 1)
+		return 0;
+#endif
+	
 	NVT_LOG("start\n");
 	//---add i2c driver---
 	ret = i2c_add_driver(&nvt_i2c_driver);
@@ -2118,6 +2123,11 @@ return:
 ********************************************************/
 static void __exit nvt_driver_exit(void)
 {
+#if defined(CONFIG_TOUCHSCREEN_NT36xxx) || defined(CONFIG_TOUCHSCREEN_NT36xxx_X00TD)
+	if (get_new_nvtouch() < 1)
+		return;
+#endif
+
 #if WAKEUP_GESTURE
     destroy_gesture_control();
 #endif
