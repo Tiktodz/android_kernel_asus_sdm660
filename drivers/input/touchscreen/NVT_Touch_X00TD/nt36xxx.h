@@ -33,6 +33,10 @@ Huaqin add by yuexinghan for ITO test end */
 #include <linux/earlysuspend.h>
 #endif
 
+#ifdef CONFIG_TOUCHSCREEN_NT36xxx_ASUS
+#include <linux/nvtouch.h>
+#endif
+
 #define NVT_DEBUG 0
 
 //---GPIO number---

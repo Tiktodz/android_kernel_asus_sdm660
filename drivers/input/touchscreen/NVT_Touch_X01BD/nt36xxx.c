@@ -2137,6 +2137,11 @@ return:
 static int32_t __init nvt_driver_init(void)
 {
 	int32_t ret = 0;
+	
+#ifdef CONFIG_TOUCHSCREEN_NT36xxx_ASUS
+	if (get_new_nvtouch() > 0)
+		return 0;
+#endif
 
 	NVT_LOG("start\n");
 	//---add i2c driver---
@@ -2161,6 +2166,11 @@ return:
 ********************************************************/
 static void __exit nvt_driver_exit(void)
 {
+#ifdef CONFIG_TOUCHSCREEN_NT36xxx_ASUS
+	if (get_new_nvtouch() > 0)
+		return;
+#endif
+
 #if WAKEUP_GESTURE
     destroy_gesture_control();
 #endif
