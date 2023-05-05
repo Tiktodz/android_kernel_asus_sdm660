@@ -808,6 +808,11 @@ Description:
 return:
 	n.a.
 *******************************************************/
+#ifdef CONFIG_MACH_ASUS_X00TD
+void nvt_ts_wakeup_gesture_report(uint8_t gesture_id)
+{
+	uint32_t keycode = 0;
+#else
 void nvt_ts_wakeup_gesture_report(uint8_t gesture_id, uint8_t *data)
 {
 	uint32_t keycode = 0;
@@ -821,6 +826,7 @@ void nvt_ts_wakeup_gesture_report(uint8_t gesture_id, uint8_t *data)
 		NVT_ERR("gesture_id %d is invalid, func_type=%d, func_id=%d\n", gesture_id, func_type, func_id);
 		return;
 	}
+#endif
 	
 	NVT_LOG("gesture_id = %d\n", gesture_id);
 
@@ -1096,7 +1102,11 @@ static void nvt_ts_worker(struct work_struct *work)
 #if WAKEUP_GESTURE
 	if (unlikely(bTouchIsAwake == 0)) {
 		input_id = (uint8_t)(point_data[1] >> 3);
+#ifdef CONFIG_MACH_ASUS_X00TD
+		nvt_ts_wakeup_gesture_report(input_id);
+#else
 		nvt_ts_wakeup_gesture_report(input_id, point_data);
+#endif
 		nvt_irq_enable(true);
 		mutex_unlock(&ts->lock);
 		return;
@@ -1858,10 +1868,6 @@ if (!allow_dclick && !allow_gesture) {
 	buf[1] = 0x11;
 	CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
 
-#ifdef NVT_POWER_SOURCE_CUST_EN		
-	nvt_lcm_power_source_ctrl(data, 0);
-	NVT_LOG("sleep suspend end  disable vsp/vsn\n");
-#endif	
 	NVT_LOG("Enter normal mode sleep \n");
 }
 else {
@@ -1907,6 +1913,16 @@ else {
 	input_sync(ts->input_dev);
 
 	msleep(50);
+
+#if NVT_POWER_SOURCE_CUST_EN
+	if (!allow_dclick && !allow_gesture) {
+	nvt_lcm_power_source_ctrl(data, 0);//disable vsp/vsn
+	NVT_LOG("sleep suspend end  disable vsp/vsn\n");
+	}
+	else{
+	NVT_LOG("gesture suspend end not disable vsp/vsn\n");
+	}
+#endif
 
 	NVT_LOG("end\n");
 
