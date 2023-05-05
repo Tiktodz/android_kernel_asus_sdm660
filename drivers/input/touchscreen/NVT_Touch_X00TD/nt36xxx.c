@@ -2098,7 +2098,7 @@ static int32_t __init nvt_driver_init(void)
 		return 0;
 #endif
 
-	NVT_LOG("start\n");
+	NVT_LOG("original driver start\n");
 	//---add i2c driver---
 	ret = i2c_add_driver(&nvt_i2c_driver);
 	if (ret) {
@@ -2106,7 +2106,7 @@ static int32_t __init nvt_driver_init(void)
 		goto err_driver;
 	}
 
-	pr_info("%s: finished\n", __func__);
+	pr_info("%s: finished original driver\n", __func__);
 
 err_driver:
 	return ret;
