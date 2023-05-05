@@ -1,8 +1,8 @@
 #
-# Synaptics DSX touchscreen driver configuration
+# Synaptics DSX v2.7 touchscreen driver configuration
 #
 menuconfig TOUCHSCREEN_SYNAPTICS_DSX_X00TD
-	bool "Synaptics DSX touchscreen"
+	bool "Synaptics DSX v2.7 touchscreen"
 	default n
 	help
 	  Say Y here if you have a Synaptics DSX touchscreen connected
