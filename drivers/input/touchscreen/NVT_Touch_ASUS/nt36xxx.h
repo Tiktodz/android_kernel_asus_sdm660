@@ -36,74 +36,74 @@
 
 #include "nt36xxx_mem_map.h"
 
-#define NVT_DEBUG 0
+#define SNVT_DEBUG 0
 
 //---GPIO number---
-#define NVTTOUCH_RST_PIN 980
-#define NVTTOUCH_INT_PIN 943
+#define SNVTTOUCH_RST_PIN 980
+#define SNVTTOUCH_INT_PIN 943
 
-#define NVT_POWER_SOURCE_CUST_EN  1
+#define SNVT_POWER_SOURCE_CUST_EN  1
 //VSN,VSP
-#if NVT_POWER_SOURCE_CUST_EN
-#define LCM_LAB_MIN_UV                      6000000
-#define LCM_LAB_MAX_UV                      6000000
-#define LCM_IBB_MIN_UV                      6000000
-#define LCM_IBB_MAX_UV                      6000000
+#if SNVT_POWER_SOURCE_CUST_EN
+#define SLCM_LAB_MIN_UV                      6000000
+#define SLCM_LAB_MAX_UV                      6000000
+#define SLCM_IBB_MIN_UV                      6000000
+#define SLCM_IBB_MAX_UV                      6000000
 #endif
 
 //---INT trigger mode---
 //#define IRQ_TYPE_EDGE_RISING 1
 //#define IRQ_TYPE_EDGE_FALLING 2
-#define INT_TRIGGER_TYPE IRQ_TYPE_EDGE_RISING
+#define SINT_TRIGGER_TYPE IRQ_TYPE_EDGE_RISING
 
 
 //---I2C driver info.---
-#define NVT_I2C_NAME "NVT-ts"
-#define I2C_BLDR_Address 0x01
-#define I2C_FW_Address 0x01
-#define I2C_HW_Address 0x62
+#define SNVT_I2C_NAME "NVT-ts"
+#define SI2C_BLDR_Address 0x01
+#define SI2C_FW_Address 0x01
+#define SI2C_HW_Address 0x62
 
-#if NVT_DEBUG
-#define NVT_LOG(fmt, args...)    pr_err("[%s] %s %d: " fmt, NVT_I2C_NAME, __func__, __LINE__, ##args)
+#if SNVT_DEBUG
+#define SNVT_LOG(fmt, args...)    pr_err("[%s] %s %d: " fmt, SNVT_I2C_NAME, __func__, __LINE__, ##args)
 #else
-#define NVT_LOG(fmt, args...)    pr_info("[%s] %s %d: " fmt, NVT_I2C_NAME, __func__, __LINE__, ##args)
+#define SNVT_LOG(fmt, args...)    pr_info("[%s] %s %d: " fmt, SNVT_I2C_NAME, __func__, __LINE__, ##args)
 #endif
-#define NVT_ERR(fmt, args...)    pr_err("[%s] %s %d: " fmt, NVT_I2C_NAME, __func__, __LINE__, ##args)
+#define SNVT_ERR(fmt, args...)    pr_err("[%s] %s %d: " fmt, SNVT_I2C_NAME, __func__, __LINE__, ##args)
 
 //---Input device info.---
-#define NVT_TS_NAME "NVTCapacitiveTouchScreen"
+#define SNVT_TS_NAME "NVTCapacitiveTouchScreen"
 
 
 //---Touch info.---
-#define TOUCH_DEFAULT_MAX_WIDTH 1080
-#define TOUCH_DEFAULT_MAX_HEIGHT 1920
-#define TOUCH_MAX_FINGER_NUM 10
-#define TOUCH_KEY_NUM 0
-#if TOUCH_KEY_NUM > 0
-extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
+#define STOUCH_DEFAULT_MAX_WIDTH 1080
+#define STOUCH_DEFAULT_MAX_HEIGHT 1920
+#define STOUCH_MAX_FINGER_NUM 10
+#define STOUCH_KEY_NUM 0
+#if STOUCH_KEY_NUM > 0
+extern const uint16_t touch_key_array[STOUCH_KEY_NUM];
 #endif
-#define TOUCH_FORCE_NUM 1000
+#define STOUCH_FORCE_NUM 1000
 
 /* Enable only when module have tp reset pin and connected to host */
-#define NVT_TOUCH_SUPPORT_HW_RST 0
+#define SNVT_TOUCH_SUPPORT_HW_RST 0
 
 //---Customerized func.---
-#define NVT_TOUCH_PROC 1
-#define NVT_TOUCH_EXT_PROC 1
-#define NVT_TOUCH_MP 0
-#define MT_PROTOCOL_B 1
-#define WAKEUP_GESTURE 1
-#if WAKEUP_GESTURE
-extern const uint16_t gesture_key_array[];
+#define SNVT_TOUCH_PROC 1
+#define SNVT_TOUCH_EXT_PROC 1
+#define SNVT_TOUCH_MP 0
+#define SMT_PROTOCOL_B 1
+#define SWAKEUP_GESTURE 1
+#if SWAKEUP_GESTURE
+extern const uint16_t sgesture_key_array[];
 #endif
-#define BOOT_UPDATE_FIRMWARE 0
-#define BOOT_UPDATE_FIRMWARE_NAME "novatek_ts_fw.bin"
+#define SBOOT_UPDATE_FIRMWARE 0
+#define SBOOT_UPDATE_FIRMWARE_NAME "novatek_ts_fw.bin"
 
 //---ESD Protect.---
-#define NVT_TOUCH_ESD_PROTECT 0
-#define NVT_TOUCH_ESD_CHECK_PERIOD 1500	/* ms */
+#define SNVT_TOUCH_ESD_PROTECT 0
+#define SNVT_TOUCH_ESD_CHECK_PERIOD 1500	/* ms */
 
-struct nvt_ts_data {
+struct snvt_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
 	struct delayed_work nvt_fwu_work;
@@ -127,19 +127,19 @@ struct nvt_ts_data {
 	uint16_t abs_y_max;
 	uint8_t max_touch_num;
 	uint8_t max_button_num;
-	uint32_t int_trigger_type;
+	uint32_t SINT_TRIGGER_TYPE;
 	int32_t irq_gpio;
 	uint32_t irq_flags;
 	int32_t reset_gpio;
 	uint32_t reset_flags;
 	struct mutex lock;
-	const struct nvt_ts_mem_map *mmap;
+	const struct snvt_ts_mem_map *mmap;
 	uint8_t carrier_system;
-	uint16_t nvt_pid;
+	uint16_t snvt_pid;
 	uint8_t xbuf[1025];
 	struct mutex xbuf_lock;
 	bool irq_enabled;
-#if NVT_POWER_SOURCE_CUST_EN
+#if SNVT_POWER_SOURCE_CUST_EN
 	struct regulator *lcm_lab;
 	struct regulator *lcm_ibb;
 	atomic_t lcm_lab_power;
@@ -147,8 +147,8 @@ struct nvt_ts_data {
 #endif
 };
 
-#if NVT_TOUCH_PROC
-struct nvt_flash_data{
+#if SNVT_TOUCH_PROC
+struct snvt_flash_data{
 	rwlock_t lock;
 	struct i2c_client *client;
 };
@@ -171,21 +171,21 @@ typedef enum {
 } I2C_EVENT_MAP;
 
 //---extern structures---
-extern struct nvt_ts_data *ts;
+extern struct snvt_ts_data *nts;
 
 //---extern functions---
-extern int32_t CTP_I2C_READ(struct i2c_client *client, uint16_t address, uint8_t *buf, uint16_t len);
-extern int32_t CTP_I2C_WRITE(struct i2c_client *client, uint16_t address, uint8_t *buf, uint16_t len);
-extern void nvt_bootloader_reset(void);
-extern void nvt_sw_reset_idle(void);
-extern int32_t nvt_check_fw_reset_state(RST_COMPLETE_STATE check_reset_state);
-extern int32_t nvt_get_fw_info(void);
-extern int32_t nvt_clear_fw_status(void);
-extern int32_t nvt_check_fw_status(void);
-extern int32_t nvt_set_page(uint16_t i2c_addr, uint32_t addr);
-#if NVT_TOUCH_ESD_PROTECT
-extern void nvt_esd_check_enable(uint8_t enable);
-#endif /* #if NVT_TOUCH_ESD_PROTECT */
-extern void nvt_stop_crc_reboot(void);
+extern int32_t SCTP_I2C_READ(struct i2c_client *client, uint16_t address, uint8_t *buf, uint16_t len);
+extern int32_t SCTP_I2C_WRITE(struct i2c_client *client, uint16_t address, uint8_t *buf, uint16_t len);
+extern void snvt_bootloader_reset(void);
+extern void snvt_sw_reset_idle(void);
+extern int32_t snvt_check_fw_reset_state(RST_COMPLETE_STATE check_reset_state);
+extern int32_t snvt_get_fw_info(void);
+extern int32_t snvt_clear_fw_status(void);
+extern int32_t snvt_check_fw_status(void);
+extern int32_t snvt_set_page(uint16_t i2c_addr, uint32_t addr);
+#if SNVT_TOUCH_ESD_PROTECT
+extern void snvt_esd_check_enable(uint8_t enable);
+#endif /* #if SNVT_TOUCH_ESD_PROTECT */
+extern void snvt_stop_crc_reboot(void);
 
 #endif /* _LINUX_NVT_TOUCH_H */

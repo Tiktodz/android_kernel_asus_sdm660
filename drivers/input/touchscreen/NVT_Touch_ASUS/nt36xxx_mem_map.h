@@ -17,7 +17,7 @@
  *
  */
 
-struct nvt_ts_mem_map {
+struct snvt_ts_mem_map {
 	uint32_t EVENT_BUF_ADDR;
 	uint32_t RAW_PIPE0_ADDR;
 	uint32_t RAW_PIPE1_ADDR;
@@ -33,12 +33,12 @@ struct nvt_ts_mem_map {
 	uint32_t RW_FLASH_DATA_ADDR;
 };
 
-struct nvt_ts_hw_info {
+struct snvt_ts_hw_info {
 	uint8_t carrier_system;
 	uint8_t hw_crc;
 };
 
-static const struct nvt_ts_mem_map NT36526_memory_map = {
+static const struct snvt_ts_mem_map NT36526_memory_map = {
 	.EVENT_BUF_ADDR           = 0x22D00,
 	.RAW_PIPE0_ADDR           = 0x24000,
 	.RAW_PIPE1_ADDR           = 0x24000,
@@ -54,7 +54,7 @@ static const struct nvt_ts_mem_map NT36526_memory_map = {
 	.RW_FLASH_DATA_ADDR       = 0x24002,
 };
 
-static const struct nvt_ts_mem_map NT36675_memory_map = {
+static const struct snvt_ts_mem_map NT36675_memory_map = {
 	.EVENT_BUF_ADDR           = 0x22D00,
 	.RAW_PIPE0_ADDR           = 0x24000,
 	.RAW_PIPE1_ADDR           = 0x24000,
@@ -70,7 +70,7 @@ static const struct nvt_ts_mem_map NT36675_memory_map = {
 	.RW_FLASH_DATA_ADDR       = 0x24002,
 };
 
-static const struct nvt_ts_mem_map NT36672A_memory_map = {
+static const struct snvt_ts_mem_map NT36672A_memory_map = {
 	.EVENT_BUF_ADDR           = 0x21C00,
 	.RAW_PIPE0_ADDR           = 0x20000,
 	.RAW_PIPE1_ADDR           = 0x23000,
@@ -86,7 +86,7 @@ static const struct nvt_ts_mem_map NT36672A_memory_map = {
 	.RW_FLASH_DATA_ADDR       = 0x24002,
 };
 
-static const struct nvt_ts_mem_map NT36772_memory_map = {
+static const struct snvt_ts_mem_map NT36772_memory_map = {
 	.EVENT_BUF_ADDR           = 0x11E00,
 	.RAW_PIPE0_ADDR           = 0x10000,
 	.RAW_PIPE1_ADDR           = 0x12000,
@@ -102,7 +102,7 @@ static const struct nvt_ts_mem_map NT36772_memory_map = {
 	.RW_FLASH_DATA_ADDR       = 0x14002,
 };
 
-static const struct nvt_ts_mem_map NT36525_memory_map = {
+static const struct snvt_ts_mem_map NT36525_memory_map = {
 	.EVENT_BUF_ADDR           = 0x11A00,
 	.RAW_PIPE0_ADDR           = 0x10000,
 	.RAW_PIPE1_ADDR           = 0x12000,
@@ -118,7 +118,7 @@ static const struct nvt_ts_mem_map NT36525_memory_map = {
 	.RW_FLASH_DATA_ADDR       = 0x14002,
 };
 
-static const struct nvt_ts_mem_map NT36676F_memory_map = {
+static const struct snvt_ts_mem_map NT36676F_memory_map = {
 	.EVENT_BUF_ADDR           = 0x11A00,
 	.RAW_PIPE0_ADDR           = 0x10000,
 	.RAW_PIPE1_ADDR           = 0x12000,
@@ -134,32 +134,32 @@ static const struct nvt_ts_mem_map NT36676F_memory_map = {
 	.RW_FLASH_DATA_ADDR       = 0x14002,
 };
 
-static struct nvt_ts_hw_info NT36526_hw_info = {
+static struct snvt_ts_hw_info NT36526_hw_info = {
 	.carrier_system = 2,
 	.hw_crc         = 2,
 };
 
-static struct nvt_ts_hw_info NT36675_hw_info = {
+static struct snvt_ts_hw_info NT36675_hw_info = {
 	.carrier_system = 2,
 	.hw_crc         = 2,
 };
 
-static struct nvt_ts_hw_info NT36672A_hw_info = {
+static struct snvt_ts_hw_info NT36672A_hw_info = {
 	.carrier_system = 0,
 	.hw_crc         = 1,
 };
 
-static struct nvt_ts_hw_info NT36772_hw_info = {
+static struct snvt_ts_hw_info NT36772_hw_info = {
 	.carrier_system = 0,
 	.hw_crc         = 0,
 };
 
-static struct nvt_ts_hw_info NT36525_hw_info = {
+static struct snvt_ts_hw_info NT36525_hw_info = {
 	.carrier_system = 0,
 	.hw_crc         = 0,
 };
 
-static struct nvt_ts_hw_info NT36676F_hw_info = {
+static struct snvt_ts_hw_info NT36676F_hw_info = {
 	.carrier_system = 0,
 	.hw_crc         = 0,
 };
@@ -168,8 +168,8 @@ static struct nvt_ts_hw_info NT36676F_hw_info = {
 struct nvt_ts_trim_id_table {
 	uint8_t id[NVT_ID_BYTE_MAX];
 	uint8_t mask[NVT_ID_BYTE_MAX];
-	const struct nvt_ts_mem_map *mmap;
-	const struct nvt_ts_hw_info *hwinfo;
+	const struct snvt_ts_mem_map *mmap;
+	const struct snvt_ts_hw_info *hwinfo;
 };
 
 static const struct nvt_ts_trim_id_table trim_id_table[] = {
