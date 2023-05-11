@@ -260,6 +260,17 @@ enum clk_osm_trace_packet_id {
 #define BM(msb, lsb)	(((((uint32_t)-1) << (31-msb)) >> (31-msb+lsb)) << lsb)
 #define BVAL(msb, lsb, val)	(((val) << lsb) & BM(msb, lsb))
 
+unsigned int is_cpu_overclocked = 0;
+
+static int __init read_cpu_overclock_state(char *s)
+{
+	if (s)
+		is_cpu_overclocked = simple_strtoul(s, NULL, 0);
+
+	return 1;
+}
+__setup("overclock.cpu=", read_cpu_overclock_state);
+
 static u32 seq_instr[] = {
 	0xc2005000, 0x2c9e3b21, 0xc0ab2cdc, 0xc2882525, 0x359dc491,
 	0x700a500b, 0x5001aefc, 0xaefd7000, 0x390938c8, 0xcb44c833,
@@ -3134,6 +3145,9 @@ static int clk_cpu_osm_driver_probe(struct platform_device *pdev)
 	struct cpu_cycle_counter_cb cb = {
 		.get_cpu_cycle_counter = clk_osm_get_cpu_cycle_counter,
 	};
+	
+	if (is_cpu_overclocked > 0)
+		pvs_ver = 1;
 
 	/*
 	 * Require the RPM-XO clock and GCC-HMSS-GPLL0 clocks to be registererd
