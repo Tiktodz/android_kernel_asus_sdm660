@@ -58,16 +58,17 @@
 
 //---I2C driver info.---
 #define SNVT_I2C_NAME "NVT-ts"
+#define SNVT_DRIVER_TYPE "NTC-NVT-ts"
 #define SI2C_BLDR_Address 0x01
 #define SI2C_FW_Address 0x01
 #define SI2C_HW_Address 0x62
 
 #if SNVT_DEBUG
-#define SNVT_LOG(fmt, args...)    pr_err("[%s] %s %d: " fmt, SNVT_I2C_NAME, __func__, __LINE__, ##args)
+#define SNVT_LOG(fmt, args...)    pr_err("[%s] %s %d: " fmt, SNVT_DRIVER_TYPE, __func__, __LINE__, ##args)
 #else
-#define SNVT_LOG(fmt, args...)    pr_info("[%s] %s %d: " fmt, SNVT_I2C_NAME, __func__, __LINE__, ##args)
+#define SNVT_LOG(fmt, args...)    pr_info("[%s] %s %d: " fmt, SNVT_DRIVER_TYPE, __func__, __LINE__, ##args)
 #endif
-#define SNVT_ERR(fmt, args...)    pr_err("[%s] %s %d: " fmt, SNVT_I2C_NAME, __func__, __LINE__, ##args)
+#define SNVT_ERR(fmt, args...)    pr_err("[%s] %s %d: " fmt, SNVT_DRIVER_TYPE, __func__, __LINE__, ##args)
 
 //---Input device info.---
 #define SNVT_TS_NAME "NVTCapacitiveTouchScreen"
