@@ -468,17 +468,35 @@ return:
 int32_t snvt_clear_fw_status(void)
 {
 	uint8_t buf[8] = {0};
-	snvt_set_page(SI2C_FW_Address, nts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE);
+	int32_t i = 0;
+	const int32_t retry = 20;
 
-	buf[0] = EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE;
-	buf[1] = 0x00;
-	SCTP_I2C_WRITE(nts->client, SI2C_FW_Address, buf, 2);
+	for (i = 0; i < retry; i++) {
+		//---set xdata index to EVENT BUF ADDR---
+		snvt_set_page(SI2C_FW_Address, nts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE);
 
-	buf[0] = EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE;
-	buf[1] = 0xFF;
-	SCTP_I2C_READ(nts->client, SI2C_FW_Address, buf, 2);
+		//---clear fw status---
+		buf[0] = EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE;
+		buf[1] = 0x00;
+		SCTP_I2C_WRITE(nts->client, SI2C_FW_Address, buf, 2);
 
-	return 0;
+		//---read fw status---
+		buf[0] = EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE;
+		buf[1] = 0xFF;
+		SCTP_I2C_READ(nts->client, SI2C_FW_Address, buf, 2);
+
+		if (buf[1] == 0x00)
+			break;
+
+		msleep(10);
+	}
+
+	if (i >= retry) {
+		SNVT_ERR("failed, i=%d, buf[1]=0x%02X\n", i, buf[1]);
+		return -1;
+	} else {
+		return 0;
+	}
 }
 
 /*******************************************************
@@ -491,13 +509,30 @@ return:
 int32_t snvt_check_fw_status(void)
 {
 	uint8_t buf[8] = {0};
-	snvt_set_page(SI2C_FW_Address, nts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE);
+	int32_t i = 0;
+	const int32_t retry = 50;
 
-	buf[0] = EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE;
-	buf[1] = 0x00;
-	SCTP_I2C_READ(nts->client, SI2C_FW_Address, buf, 2);
+	for (i = 0; i < retry; i++) {
+		//---set xdata index to EVENT BUF ADDR---
+		snvt_set_page(SI2C_FW_Address, nts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE);
 
-	return 0;
+		//---read fw status---
+		buf[0] = EVENT_MAP_HANDSHAKING_or_SUB_CMD_BYTE;
+		buf[1] = 0x00;
+		SCTP_I2C_READ(nts->client, SI2C_FW_Address, buf, 2);
+
+		if ((buf[1] & 0xF0) == 0xA0)
+			break;
+
+		msleep(10);
+	}
+
+	if (i >= retry) {
+		SNVT_ERR("failed, i=%d, buf[1]=0x%02X\n", i, buf[1]);
+		return -1;
+	} else {
+		return 0;
+	}
 }
 
 /*******************************************************
@@ -511,9 +546,29 @@ int32_t snvt_check_fw_reset_state(RST_COMPLETE_STATE check_reset_state)
 {
 	uint8_t buf[8] = {0};
 	int32_t ret = 0;
-	buf[0] = EVENT_MAP_RESET_COMPLETE;
-	buf[1] = 0x00;
-	SCTP_I2C_READ(nts->client, SI2C_FW_Address, buf, 6);
+	int32_t retry = 0;
+
+	while (1) {
+		msleep(10);
+
+		//---read reset state---
+		buf[0] = EVENT_MAP_RESET_COMPLETE;
+		buf[1] = 0x00;
+		SCTP_I2C_READ(nts->client, SI2C_FW_Address, buf, 6);
+
+		if ((buf[1] >= check_reset_state) && (buf[1] <= RESET_STATE_MAX)) {
+			ret = 0;
+			break;
+		}
+
+		retry++;
+		if(unlikely(retry > 100)) {
+			SNVT_ERR("error, retry=%d, buf[1]=0x%02X, 0x%02X, 0x%02X, 0x%02X, 0x%02X\n",
+				retry, buf[1], buf[2], buf[3], buf[4], buf[5]);
+			ret = -1;
+			break;
+		}
+	}
 
 	return ret;
 }
