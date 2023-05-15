@@ -1066,9 +1066,6 @@ static void nvt_ts_worker(struct work_struct *work)
 #endif /* SMT_PROTOCOL_B */
 	int32_t i = 0;
 	int32_t finger_cnt = 0;
-	struct sched_param param = { .sched_priority = MAX_USER_RT_PRIO / 2 };
-
-	sched_setscheduler(current, SCHED_RR, &param);
 
 #if SWAKEUP_GESTURE
 	if (unlikely(bTouchIsAwake == 0)) {
