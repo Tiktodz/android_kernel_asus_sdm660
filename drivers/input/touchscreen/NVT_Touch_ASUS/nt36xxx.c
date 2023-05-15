@@ -488,7 +488,7 @@ int32_t snvt_clear_fw_status(void)
 		if (buf[1] == 0x00)
 			break;
 
-		msleep(10);
+		usleep_range(10000, 10000);
 	}
 
 	if (i >= retry) {
@@ -524,7 +524,7 @@ int32_t snvt_check_fw_status(void)
 		if ((buf[1] & 0xF0) == 0xA0)
 			break;
 
-		msleep(10);
+		usleep_range(10000, 10000);
 	}
 
 	if (i >= retry) {
@@ -549,7 +549,7 @@ int32_t snvt_check_fw_reset_state(RST_COMPLETE_STATE check_reset_state)
 	int32_t retry = 0;
 
 	while (1) {
-		msleep(10);
+		usleep_range(10000, 10000);
 
 		//---read reset state---
 		buf[0] = EVENT_MAP_RESET_COMPLETE;
