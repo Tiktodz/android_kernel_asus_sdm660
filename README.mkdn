@@ -10,42 +10,54 @@ Clone with `--recursive` option coz this source has submodule.
 Just Copy, Paste, Then Execute the command :)
 
 
-OverClocked Kernel
+OverClock Kernel
 ------------------
-This Kernel is Overclocked. If u want go Back to Stock Freq, Do this:
+This Kernel is using Stock Freq. If u want Overclocked Freq, Do this:
 
-On Branch r2/s:
-```bash
-   git revert 349b1fb219865bb0552d86b2172fd9372105bd2f -n && \
-   git commit -m "Use Back Stock Freq"
-```
+To Overclock CPU:
+
+- Add `overclock.cpu=1` into boot cmdline. Or
+- Hardcode, set this to 1 https://github.com/RyuujiX/android_kernel_asus_sdm660-4.19/blob/test/drivers/clk/qcom/clk-cpu-osm-660.c#L263
+
+To Overclock GPU:
+
+- Add `overclock.gpu=1` into boot cmdline. Or
+- Hardcode, set this to 1 https://github.com/RyuujiX/android_kernel_asus_sdm660-4.19/blob/test/drivers/gpu/msm/adreno.c#L31
 
 KernelSU
 --------
-KernelSU is implemented and enabled by default. If u don't want it...
-Just set `CONFIG_KSU=n` in defconfig or Add `kernelsu.enabled=0` into boot cmdline.
+KernelSU is implemented and enabled by default. If u don't want it, Do this:
+
+- Add `kernelsu.enabled=0` into boot cmdline, or
+- Disable `CONFIG_KSU`
+
+If u only want to enable Safe Mode (U should enable KernelSU too), Which u just want Root Access and Modules Feature disabled, Do this:
+
+- Add `kernelsu.safemode=1` into boot cmdline. Or
+- Set `CONFIG_KSU_SAFE_MODE=y` in defconfig.
 
 Source: https://github.com/RyuujiX/KernelSU
 
 
 Using New Novatek Touchscreen Driver
 ------------------------------------
-This source is still using original driver from 4.4 source... but, i have updated nvt driver and disabled
-coz it has problem for some touchscreen (Especially original screen). Working smoothly on mine with new driver
+This source is still using original driver from 4.4 source... but, i have updated nvt driver.
 
-Whatever, Gacha Phone.... If u want to use new driver, do this:
+Working smoothly on mine with new driver.
 
-On Branch r2/s:
-```bash
-   git cherry-pick 9cf0464c281016ee2d97598c532fdb7002d11981
-```
+If u want to use new driver, do this:
 
+- Add `use_new_nvtouch=1` into boot cmdline. Or
+- Hardcode, set this to 1 https://github.com/RyuujiX/android_kernel_asus_sdm660-4.19/blob/test/init/main.c#L147
+- Or, Disable Original NVT Driver in defconfig. `CONFIG_TOUCHSCREEN_NT36xxx_ASUS` is New NVT Driver.
 
 Spectrum Support
 ----------------
 Pick Spectrum Script from Here: https://github.com/RyuujiX/spectrum , then rename it to init.spectrum.rc
 
 Name: 4.19-xxxxxxxxx
+
+Note: 4.19-xxxx-oc is for Overclocked Both CPU and GPU.
 
 Or , make it by ur self .
 
