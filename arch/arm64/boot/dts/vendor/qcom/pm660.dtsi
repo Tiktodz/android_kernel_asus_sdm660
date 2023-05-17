@@ -534,7 +534,7 @@
 	pm660_temp_alarm: pm660-tz {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
-		thermal-governor = "step_wise";
+		thermal-governor = "user_space";
 		thermal-sensors = <&pm660_tz>;
 		wake-capable-sensor;
 
