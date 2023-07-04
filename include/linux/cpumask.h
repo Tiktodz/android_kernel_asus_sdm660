@@ -275,7 +275,7 @@ static inline unsigned int cpumask_next_zero(int n, const struct cpumask *srcp)
 	return nr > nr_cpumask_bits ? nr_cpumask_bits : nr;
 }
 
-static inline unsigned int cpumask_next_and(int n, const struct cpumask *srcp,
+static inline int cpumask_next_and(int n, const struct cpumask *srcp,
 				   const struct cpumask *andp)
 {
 	unsigned int nr, shift;
@@ -294,7 +294,7 @@ static inline unsigned int cpumask_next_and(int n, const struct cpumask *srcp,
 	return nr > nr_cpumask_bits ? nr_cpumask_bits : nr;
 }
 
-static inline unsigned int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
+static inline int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
 {
 	unsigned long bits = *cpumask_bits(mask);
 	unsigned int nr;
