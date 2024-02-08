@@ -30,12 +30,6 @@ static void patch_flag(char *cmd, const char *flag, const char *val)
 	memcpy(start + flag_len, val, val_len);
 }
 
-static void patch_safetynet_flags(char *cmd)
-{
-	remove_flag(cmd, "androidboot.veritymode=");
-}
-
-#if 1
 static void replace_flag(char *cmd, const char *flag, const char *flag_new)
 {
 	char *start_addr, *end_addr;
@@ -56,18 +50,16 @@ static void replace_safetynet_flags(char *cmd)
 	replace_flag(cmd, "androidboot.verifiedbootstate=orange",
 			  "androidboot.verifiedbootstate=green ");
 }
-#endif
 
 static int __init proc_cmdline_init(void)
 {
 	strcpy(new_command_line, saved_command_line);
 
 	/*
-	 * Remove/replace various flags from command line seen by userspace in order to
+	 * Replace various flags from command line seen by userspace in order to
 	 * pass SafetyNet CTS check.
 	 */
 	replace_safetynet_flags(new_command_line);
-	remove_safetynet_flags(new_command_line);
 
 	proc_create_single("cmdline", 0, NULL, cmdline_proc_show);
 	return 0;
