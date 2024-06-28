@@ -8658,6 +8658,7 @@ struct uclamp_param {
 	char uclamp_min[3];
 	char uclamp_max[3];
 	u64  uclamp_latency_sensitive;
+	u64  uclamp_boosted;
 };
 
 static void uclamp_set(struct cgroup_subsys_state *css)
@@ -8665,15 +8666,15 @@ static void uclamp_set(struct cgroup_subsys_state *css)
 	int i;
 
 	static struct uclamp_param tgts[] = {
-		{"top-app",             "10", "max",  1, 20480},
-		{"rt",			"0", "max",  1, 20480},
-		{"nnapi-hal",		"0", "max",  1, 20480},
-       		{"foreground",          "0", "max",  1, 20480},
-                {"camera-daemon",       "10", "max",  1, 20480},
-                {"system",              "0", "max",  0, 20480},
-                {"dex2oat",             "0",  "60",  0,   512},
-        	{"background",          "0",  "50",  0,  1024},
-        	{"system-background",   "0",  "50",  0,  1024},
+		{"top-app",            "10",  "max",  1, 1, 20480},
+		{"rt",			"0",  "max",  1, 0, 20480},
+		{"nnapi-hal",		"0",  "max",  1, 0, 20480},
+       		{"foreground",          "0",  "max",  1, 0, 20480},
+                {"camera-daemon",      "10",  "max",  1, 1, 20480},
+                {"system",              "0",  "max",  0, 0, 20480},
+                {"dex2oat",             "0",  "60",   0, 0,   512},
+        	{"background",          "0",  "50",   0, 0,  1024},
+        	{"system-background",   "0",  "50",   0, 0,  1024},
 	};
 
         if(!css->cgroup->kn)
@@ -8690,8 +8691,10 @@ static void uclamp_set(struct cgroup_subsys_state *css)
 			cpu_uclamp_ls_write_u64(css, NULL,
 						tgt.uclamp_latency_sensitive);
 
-			pr_info("uclamp_assist: setting values for %s: uclamp_min=%s uclamp_max=%s uclamp_latency_sensitive=%d\n",
-				tgt.name, tgt.uclamp_min, tgt.uclamp_max,tgt.uclamp_latency_sensitive);
+			pr_info("uclamp_assist: setting values for %s: uclamp_min=%s uclamp_max=%s"
+				"uclamp_latency_sensitive=%d\n uclamp_boosted=%d"
+				tgt.name, tgt.uclamp_min, tgt.uclamp_max, tgt.uclamp_latency_sensitive,
+				tgt.uclamp_boosted);
 			return;			
 		}
 	}
