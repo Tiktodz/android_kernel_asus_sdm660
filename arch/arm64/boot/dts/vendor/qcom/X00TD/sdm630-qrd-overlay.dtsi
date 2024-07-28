@@ -23,6 +23,5 @@
 	gpio_keys {
 		/delete-node/ home;
 	};
-
-	/delete-node/ hbtb;
+	/delete-node/ hbtp;
 };
