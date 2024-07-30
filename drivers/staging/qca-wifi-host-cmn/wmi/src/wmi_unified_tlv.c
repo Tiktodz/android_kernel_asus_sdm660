@@ -8244,7 +8244,7 @@ static bool is_service_enabled_tlv(wmi_unified_t wmi_handle,
 	}
 
 	if (service_id >= WMI_MAX_EXT_SERVICE) {
-		WMI_LOGD("Service id %d but WMI ext2 service bitmap is NULL",
+		WMI_LOGE("Service id %d but WMI ext2 service bitmap is NULL",
 			 service_id);
 		return false;
 	}
@@ -12108,6 +12108,7 @@ extract_roam_result_stats_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 	dst->status = src_data->roam_status ? false : true;
 	dst->timestamp = src_data->timestamp;
 	dst->fail_reason = src_data->roam_fail_reason;
+	WMI_MAC_ADDR_TO_CHAR_ARRAY(&src_data->bssid, dst->fail_bssid.bytes);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -12172,6 +12173,47 @@ extract_roam_11kv_stats_tlv(wmi_unified_t wmi_handle, void *evt_buf,
 	}
 
 	return QDF_STATUS_SUCCESS;
+}
+
+/**
+ * send_roam_set_param_cmd_tlv() - WMI roam set parameter function
+ * @wmi_handle      : handle to WMI.
+ * @roam_param    : pointer to hold roam set parameter
+ *
+ * Return: 0  on success and -ve on failure.
+ */
+static QDF_STATUS
+send_roam_set_param_cmd_tlv(wmi_unified_t wmi_handle,
+			    struct vdev_set_params *roam_param)
+{
+	QDF_STATUS ret;
+	wmi_roam_set_param_cmd_fixed_param *cmd;
+	wmi_buf_t buf;
+	uint16_t len = sizeof(*cmd);
+
+	buf = wmi_buf_alloc(wmi_handle, len);
+	if (!buf)
+		return QDF_STATUS_E_NOMEM;
+
+	cmd = (wmi_roam_set_param_cmd_fixed_param *)wmi_buf_data(buf);
+	WMITLV_SET_HDR(&cmd->tlv_header,
+		       WMITLV_TAG_STRUC_wmi_roam_set_param_cmd_fixed_param,
+		       WMITLV_GET_STRUCT_TLVLEN
+				(wmi_roam_set_param_cmd_fixed_param));
+	cmd->vdev_id = roam_param->if_id;
+	cmd->param_id = roam_param->param_id;
+	cmd->param_value = roam_param->param_value;
+	wmi_debug("Setting vdev %d roam_param = %x, value = %u",
+		  cmd->vdev_id, cmd->param_id, cmd->param_value);
+	wmi_mtrace(WMI_ROAM_SET_PARAM_CMDID, cmd->vdev_id, 0);
+	ret = wmi_unified_cmd_send(wmi_handle, buf, len,
+				   WMI_ROAM_SET_PARAM_CMDID);
+	if (QDF_IS_STATUS_ERROR(ret)) {
+		wmi_err("Failed to send roam set param command, ret = %d", ret);
+		wmi_buf_free(buf);
+	}
+
+	return ret;
 }
 #else
 static inline QDF_STATUS
@@ -12488,6 +12530,9 @@ struct wmi_ops tlv_ops =  {
 #ifdef WLAN_FEATURE_PKT_CAPTURE
 	.extract_vdev_mgmt_offload_event = extract_vdev_mgmt_offload_event_tlv,
 #endif /* WLAN_FEATURE_PKT_CAPTURE */
+#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+	.send_roam_set_param_cmd = send_roam_set_param_cmd_tlv,
+#endif /* WLAN_FEATURE_ROAM_OFFLOAD */
 };
 
 /**
@@ -13117,8 +13162,6 @@ static void populate_tlv_service(uint32_t *wmi_service)
 			WMI_SERVICE_WPA3_SUITEB_ROAM_SUPPORT;
 	wmi_service[wmi_service_sae_eapol_offload_support] =
 			WMI_SERVICE_SAE_EAPOL_OFFLOAD_SUPPORT;
-	wmi_service[wmi_service_ll_stats_per_chan_rx_tx_time] =
-			WMI_SERVICE_LL_STATS_PER_CHAN_RX_TX_TIME_SUPPORT;
 }
 
 /**

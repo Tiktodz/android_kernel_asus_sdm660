@@ -27,6 +27,7 @@
 #include <reg_services_public_struct.h>
 #include <wmi_unified_param.h>
 #include <sir_api.h>
+#include "csr_api.h"
 
 #define CFG_PMKID_MODES_OKC                        (0x1)
 #define CFG_PMKID_MODES_PMKSA_CACHING              (0x2)
@@ -1403,6 +1404,7 @@ struct bss_load_trigger {
 /*
  * @mawc_roam_enabled:              Enable/Disable MAWC during roaming
  * @enable_fast_roam_in_concurrency:Enable LFR roaming on STA during concurrency
+ * @roam_rt_stats:                  Roam event stats vendor command parameters
  * @lfr3_roaming_offload:           Enable/disable roam offload feature
  * @enable_self_bss_roam:               enable roaming to connected BSSID
  * @enable_disconnect_roam_offload: enable disassoc/deauth roam scan.
@@ -1511,6 +1513,7 @@ struct wlan_mlme_lfr_cfg {
 	bool mawc_roam_enabled;
 	bool enable_fast_roam_in_concurrency;
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
+	struct csr_roam_rt_stats roam_rt_stats;
 	bool lfr3_roaming_offload;
 	bool enable_self_bss_roam;
 	bool enable_disconnect_roam_offload;
@@ -1779,6 +1782,8 @@ struct wlan_mlme_wmm_params {
  * @pcl_weightage: PCL weightage
  * @channel_congestion_weightage: channel congestion weightage
  * @oce_wan_weightage: OCE WAN metrics weightage
+ * @sae_pk_ap_weightage: SAE-PK AP weigtage
+ * @security_weightage: Security weightage
  */
 struct  wlan_mlme_weight_config {
 	uint8_t rssi_weightage;
@@ -1792,6 +1797,8 @@ struct  wlan_mlme_weight_config {
 	uint8_t pcl_weightage;
 	uint8_t channel_congestion_weightage;
 	uint8_t oce_wan_weightage;
+	uint8_t sae_pk_ap_weightage;
+	uint8_t security_weightage;
 };
 
 /**
@@ -1870,6 +1877,7 @@ struct wlan_mlme_per_slot_scoring {
  * @vendor_roam_score_algorithm: Preferred vendor roam score algorithm
  * @min_roam_score_delta: Minimum difference between connected AP's and
  *			candidate AP's roam score to start roaming.
+ * @security_weight_per_index: security weight per index
  */
 struct wlan_mlme_scoring_cfg {
 	bool enable_scoring_for_roam;
@@ -1885,6 +1893,7 @@ struct wlan_mlme_scoring_cfg {
 	bool apsd_enabled;
 	uint32_t vendor_roam_score_algorithm;
 	uint32_t min_roam_score_delta;
+	uint32_t security_weight_per_index;
 };
 
 /* struct wlan_mlme_threshold - Threshold related config items
@@ -2312,17 +2321,45 @@ struct wlan_mlme_sae_single_pmk {
 };
 
 /**
+ * struct roam_event_rt_info - Roam event related information
+ * @vdev_id: Vdev id
+ * @roam_scan_state: roam scan state notif value
+ * @roam_invoke_fail_reason: roam invoke fail reason
+ */
+struct roam_event_rt_info {
+	uint8_t vdev_id;
+	uint32_t roam_scan_state;
+	uint32_t roam_invoke_fail_reason;
+};
+
+/**
+ * enum roam_rt_stats_type: different types of params to get roam event stats
+ * for the vdev
+ * @ROAM_RT_STATS_TYPE_SCAN_STATE: Roam Scan Start/End
+ * @ROAM_RT_STATS_TYPE_INVOKE_FAIL_REASON: One of WMI_ROAM_FAIL_REASON_ID for
+ * roam failure in case of forced roam
+ * @ROAM_RT_STATS_TYPE_ROAM_SCAN_INFO: Roam Trigger/Fail/Scan/AP Stats
+ */
+enum roam_rt_stats_type {
+	ROAM_RT_STATS_TYPE_SCAN_STATE,
+	ROAM_RT_STATS_TYPE_INVOKE_FAIL_REASON,
+	ROAM_RT_STATS_TYPE_ROAM_SCAN_INFO,
+};
+
+/**
  * struct mlme_roam_debug_info - Roam debug information storage structure.
  * @trigger:            Roam trigger related data
  * @scan:               Roam scan related data structure.
  * @result:             Roam result parameters.
  * @data_11kv:          Neighbor report/BTM parameters.
+ * @roam_event_param:   Roam event notif params
  */
 struct mlme_roam_debug_info {
 	struct wmi_roam_trigger_info trigger;
 	struct wmi_roam_scan_data scan;
 	struct wmi_roam_result result;
 	struct wmi_neighbor_report_data data_11kv;
+	struct roam_event_rt_info roam_event_param;
 };
 
 #endif

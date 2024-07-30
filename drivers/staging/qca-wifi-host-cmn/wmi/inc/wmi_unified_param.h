@@ -5366,7 +5366,6 @@ typedef enum {
 	wmi_service_peer_delete_no_peer_flush_tids_cmd,
 	wmi_service_suiteb_roam_support,
 	wmi_service_sae_eapol_offload_support,
-	wmi_service_ll_stats_per_chan_rx_tx_time,
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF
@@ -7834,12 +7833,14 @@ struct wmi_roam_scan_data {
  * @timestamp:          Host timestamp in millisecs
  * @status:             0 - Roaming is success ; 1 - Roaming failed
  * @fail_reason:        One of WMI_ROAM_FAIL_REASON_ID
+ * @fail_bssid:         BSSID of the last attempted roam failed AP
  */
 struct wmi_roam_result {
 	bool present;
 	uint32_t timestamp;
 	bool status;
 	uint32_t fail_reason;
+	struct qdf_mac_addr fail_bssid;
 };
 
 /**

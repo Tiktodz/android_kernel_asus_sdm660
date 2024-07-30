@@ -3143,6 +3143,7 @@ struct roam_offload_synch_ind {
 	struct qdf_mac_addr src_mac;
 	uint16_t hlp_data_len;
 	uint8_t hlp_data[FILS_MAX_HLP_DATA_LEN];
+	bool is_ft_im_roam;
 };
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
@@ -3735,17 +3736,12 @@ struct wifi_rate_info {
  * struct wifi_channel_stats - channel statistics
  * @channel: channel for which the stats are applicable
  * @on_time: msecs the radio is awake
- * @cca_busy_time: secs the CCA register is busy excluding own tx_time
- * @tx_time: msecs the radio is transmitting on this channel
- * @rx_time: msecs the radio is in active receive on this channel
+ * @cca_busy_time: secs the CCA register is busy
  */
 struct wifi_channel_stats {
 	struct wifi_channel_info channel;
 	uint32_t on_time;
 	uint32_t cca_busy_time;
-	uint32_t tx_time;
-	uint32_t rx_time;
-
 };
 
 /**

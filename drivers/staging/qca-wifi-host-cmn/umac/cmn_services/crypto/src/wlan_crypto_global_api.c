@@ -63,7 +63,7 @@ const struct wlan_crypto_cipher *wlan_crypto_cipher_ops[WLAN_CRYPTO_CIPHER_MAX];
  *
  * Return: wlan_crypto_params or NULL in case of failure
  */
-static struct wlan_crypto_params *wlan_crypto_vdev_get_comp_params(
+struct wlan_crypto_params *wlan_crypto_vdev_get_comp_params(
 				struct wlan_objmgr_vdev *vdev,
 				struct wlan_crypto_comp_priv **crypto_priv){
 	*crypto_priv = (struct wlan_crypto_comp_priv *)
@@ -3965,6 +3965,27 @@ wlan_crypto_reset_prarams(struct wlan_crypto_params *params)
 	params->cipher_caps = 0;
 	params->key_mgmt = 0;
 	params->rsn_caps = 0;
+}
+
+uint8_t *
+wlan_crypto_parse_rsnxe_ie(uint8_t *rsnxe_ie, uint8_t *cap_len)
+{
+	uint8_t len;
+	uint8_t *ie;
+
+	if (!rsnxe_ie)
+		return NULL;
+
+	ie = rsnxe_ie;
+	len = ie[1];
+	ie += 2;
+
+	if (!len)
+		return NULL;
+
+	*cap_len = ie[0] & 0xf;
+
+	return ie;
 }
 
 QDF_STATUS wlan_set_vdev_crypto_prarams_from_ie(struct wlan_objmgr_vdev *vdev,
