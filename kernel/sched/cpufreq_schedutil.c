@@ -1018,7 +1018,6 @@ static void sugov_exit(struct cpufreq_policy *policy)
 		sugov_tunables_save(policy, tunables);
 		sugov_clear_global_tunables();
 	}
-
 	mutex_unlock(&global_tunables_lock);
 
 	sugov_kthread_stop(sg_policy);
