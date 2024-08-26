@@ -24,32 +24,6 @@
 	};
 };
 
-&firmware {
-	android {
-		vbmeta {
-			status = "disabled";
-		};
-
-		fstab {
-			vendor {
-				type = "ext4";
-				mnt_flags = "ro,barrier=1,discard";
-				fsmgr_flags = "wait";
-				status = "ok";
-			};
-
-			system {
-				compatible = "android,system";
-				dev = "/dev/block/platform/soc/c0c4000.sdhci/by-name/system";
-				type = "ext4";
-				mnt_flags = "ro,barrier=1,discard";
-				fsmgr_flags = "wait";
-				status = "ok";
-			};
-		};
-	};
-};
-
 &wdog {
 	qcom,bark-time = <20000>;
 };
