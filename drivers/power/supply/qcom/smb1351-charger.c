@@ -368,10 +368,10 @@
 #define USB2_MAX_CURRENT_MA			500
 #define USB3_MIN_CURRENT_MA			150
 #define USB3_MAX_CURRENT_MA			900
-#define DCP_MAX_CURRENT_MA			1500
+#define DCP_MAX_CURRENT_MA			2000
 #define SMB1351_IRQ_REG_COUNT			8
 #define SMB1351_CHG_PRE_MIN_MA			100
-#define SMB1351_CHG_FAST_MIN_MA			1000
+#define SMB1351_CHG_FAST_MIN_MA			1500
 #define SMB1351_CHG_FAST_MAX_MA			4500
 #define SMB1351_CHG_PRE_SHIFT			5
 #define SMB1351_CHG_FAST_SHIFT			4
@@ -738,7 +738,7 @@ static int smb1351_fastchg_current_set(struct smb1351_charger *chip,
 	}
 
 	/*
-	 * fast chg current could not support less than 1000mA
+	 * fast chg current could not support less than 1500mA
 	 * use pre chg to instead for the parallel charging
 	 */
 	if (fastchg_current < SMB1351_CHG_FAST_MIN_MA) {
@@ -1290,7 +1290,7 @@ static int smb1351_set_usb_chg_current(struct smb1351_charger *chip,
 		return 0;
 	}
 
-	/* set suspend bit when urrent_ma <= 2 */
+	/* set suspend bit when current_ma <= 2 */
 	if (current_ma <= SUSPEND_CURRENT_MA) {
 		smb1351_usb_suspend(chip, CURRENT, true);
 		pr_debug("USB suspend\n");
