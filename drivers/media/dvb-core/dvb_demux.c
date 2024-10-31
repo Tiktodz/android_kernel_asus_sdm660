@@ -761,7 +761,6 @@ static int dvb_dmx_swfilter_section_one_packet(struct dvb_demux_feed *feed,
 	p = 188 - count;	/* payload start */
 
 	cc = buf[3] & 0x0f;
-<<<<<<< HEAD
 	if (feed->first_cc)
 		ccok = 1;
 	else
@@ -773,9 +772,6 @@ static int dvb_dmx_swfilter_section_one_packet(struct dvb_demux_feed *feed,
 
 	feed->first_cc = 0;
 	feed->cc = cc;
-=======
-	ccok = ((feed->cc + 1) & 0x0f) == cc;
->>>>>>> 0e19062e22afc4a723e48b5f03d8875b2ba91983
 
 	if (buf[3] & 0x20) {
 		/* adaption field present, check for discontinuity_indicator */
