@@ -18,13 +18,13 @@ tg_post_build()
 	    curl -F document=@"$1" "$BOT_BUILD_URL" \
 	    -F chat_id="$TG_CHAT_ID"  \
 	    -F "disable_web_page_preview=true" \
-	    -F "parse_mode=Markdownv2" \
+	    -F "parse_mode=Markdown" \
 	    -F caption="$2"
 	else
 	    curl -F document=@"$1" "$BOT_BUILD_URL" \
 	    -F chat_id="$TG_CHAT_ID"  \
 	    -F "disable_web_page_preview=true" \
-	    -F "parse_mode=Markdownv2" \
+	    -F "parse_mode=Markdown" \
 	    -F caption="$2"
 	fi
 }
@@ -101,4 +101,4 @@ ZIP_FINAL="$ZIP_FINAL-signed"
 BUILD_END=$(date +"%s")
 DIFF=$(($BUILD_END - $BUILD_START))
 
-tg_post_build "$ZIP_FINAL.zip" "Build completed in $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) second(s)"
+tg_post_build "$ZIP_FINAL.zip" "🕰 Build completed in $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) second(s)"
