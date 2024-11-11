@@ -18,13 +18,13 @@ tg_post_build()
 	    curl -F document=@"$1" "$BOT_BUILD_URL" \
 	    -F chat_id="$TG_CHAT_ID"  \
 	    -F "disable_web_page_preview=true" \
-	    -F "parse_mode=Markdown" \
+	    -F "parse_mode=Markdownv2" \
 	    -F caption="$2"
 	else
 	    curl -F document=@"$1" "$BOT_BUILD_URL" \
 	    -F chat_id="$TG_CHAT_ID"  \
 	    -F "disable_web_page_preview=true" \
-	    -F "parse_mode=Markdown" \
+	    -F "parse_mode=Markdownv2" \
 	    -F caption="$2"
 	fi
 }
@@ -42,8 +42,9 @@ KERNEL_DEFCONFIG=asus/X00TD_defconfig
 ANYKERNEL3_DIR=$KERNELDIR/AnyKernel3/
 TZ=Asia/Jakarta
 DATE=$(date '+%Y%m%d')
+DATE2=$(date '+%Y%m%d-%H%M')
 BUILD_START=$(date +"%s")
-FINAL_KERNEL_ZIP="$KERNELNAME-$VERSION-$VARIANT-$(date '+%Y%m%d-%H%M')"
+FINAL_KERNEL_ZIP="$KERNELNAME-$VERSION-$VARIANT-$DATE2"
 KERVER=$(make kernelversion)
 
 # Exporting
