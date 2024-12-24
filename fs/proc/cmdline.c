@@ -14,22 +14,6 @@ static int cmdline_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static void patch_flag(char *cmd, const char *flag, const char *val)
-{
-	size_t flag_len, val_len;
-	char *start, *end;
-
-	start = strstr(cmd, flag);
-	if (!start)
-		return;
-
-	flag_len = strlen(flag);
-	val_len = strlen(val);
-	end = start + flag_len + strcspn(start + flag_len, " ");
-	memmove(start + flag_len + val_len, end, strlen(end) + 1);
-	memcpy(start + flag_len, val, val_len);
-}
-
 static void replace_flag(char *cmd, const char *flag, const char *flag_new)
 {
 	char *start_addr, *end_addr;
