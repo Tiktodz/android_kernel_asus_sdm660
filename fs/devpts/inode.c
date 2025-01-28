@@ -617,7 +617,6 @@ void *devpts_get_priv(struct dentry *dentry)
 {
 
 #ifdef CONFIG_KSU
-	if (get_ksu_state() > 0)
 		ksu_handle_devpts(dentry->d_inode);
 #endif
 
