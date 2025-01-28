@@ -4922,7 +4922,7 @@ static void fg_create_debugfs(struct fg_dev *fg)
 }
 #endif
 
-#define DEFAULT_CUTOFF_VOLT_MV		3200
+#define DEFAULT_CUTOFF_VOLT_MV		3400
 #define DEFAULT_EMPTY_VOLT_MV		2850
 #define DEFAULT_RECHARGE_VOLT_MV	4250
 #define DEFAULT_CHG_TERM_CURR_MA	100
@@ -4933,8 +4933,8 @@ static void fg_create_debugfs(struct fg_dev *fg)
 #define DEFAULT_RECHARGE_SOC_THR	95
 #define DEFAULT_BATT_TEMP_COLD		0
 #define DEFAULT_BATT_TEMP_COOL		5
-#define DEFAULT_BATT_TEMP_WARM		45
-#define DEFAULT_BATT_TEMP_HOT		50
+#define DEFAULT_BATT_TEMP_WARM		80
+#define DEFAULT_BATT_TEMP_HOT		90
 #define DEFAULT_CL_START_SOC		15
 #define DEFAULT_CL_MIN_TEMP_DECIDEGC	150
 #define DEFAULT_CL_MAX_TEMP_DECIDEGC	500
