@@ -178,7 +178,6 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
 	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
 
 #ifdef CONFIG_KSU
-	if (get_ksu_state() > 0)
 		ksu_handle_stat(&dfd, &filename, &flags);
 #endif
 
