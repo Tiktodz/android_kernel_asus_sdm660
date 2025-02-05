@@ -849,7 +849,7 @@ static void nvt_flash_proc_deinit(void)
 #define GESTURE_SLIDE_LEFT      23
 #define GESTURE_SLIDE_RIGHT     24
 /* customized gesture id */
-#define DATA_PROTOCOL           30
+#define DATA_PROTOCOL           31
 
 /* function page definition */
 #define FUNCPAGE_GESTURE         1
