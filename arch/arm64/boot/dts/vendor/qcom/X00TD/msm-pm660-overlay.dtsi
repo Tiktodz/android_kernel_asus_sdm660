@@ -46,7 +46,7 @@
 &pm660_fg {
 	qcom,battery-thermal-coefficients = [9d 50 ff];
 	qcom,cl-min-temp = <150>;
-	qcom,cl-max-temp = <600>;
+	qcom,cl-max-temp = <550>;
 	qcom,fg-esr-timer-asleep = <160 256>;
 	qcom,fg-cutoff-voltage = <3400>;
 	qcom,fg-empty-voltage = <2800>;
