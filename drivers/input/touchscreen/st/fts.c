@@ -254,7 +254,7 @@ static ssize_t fts_fwupdate_show(struct device *dev,
 	struct fts_ts_info *info = i2c_get_clientdata(client);
 
 	//fwupdate_stat: ERROR code Returned by flashProcedure.
-	return snprintf(buf, PAGE_SIZE, "AA%08XBB\n", info->fwupdate_stat);
+	return snprintf(buf, sizeof(buf), "AA%08XBB\n", info->fwupdate_stat);
 }
 
 /****UTILITIES (current fw_ver/conf_id, active mode, file fw_ver/conf_id)****/
@@ -267,7 +267,7 @@ static ssize_t fts_appid_show(struct device *dev,
 {
 	int error;
 
-	error = snprintf(buf, PAGE_SIZE, "%x.%x\n", ftsInfo.u16_fwVer,
+	error = snprintf(buf, sizeof(buf), "%x.%x\n", ftsInfo.u16_fwVer,
 		ftsInfo.u16_cfgId);
 	return error;
 }
@@ -285,7 +285,7 @@ static ssize_t fts_mode_active_show(struct device *dev,
 
 	logError(1, "%s Current mode active = %08X\n", tag, info->mode);
 	//return sprintf(buf, "AA%08XBB\n", info->mode);
-	return snprintf(buf, PAGE_SIZE, "AA%08XBB\n", info->mode);
+	return snprintf(buf, sizeof(buf), "AA%08XBB\n", info->mode);
 }
 
 /**
