@@ -185,6 +185,7 @@ static int rwdt_probe(struct platform_device *pdev)
 	struct clk *clk;
 	unsigned long clks_per_sec;
 	int ret, i;
+	u8 csra;
 
 	if (rwdt_blacklisted(&pdev->dev))
 		return -ENODEV;
@@ -205,8 +206,8 @@ static int rwdt_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 	priv->clk_rate = clk_get_rate(clk);
-	priv->wdev.bootstatus = (readb_relaxed(priv->base + RWTCSRA) &
-				RWTCSRA_WOVF) ? WDIOF_CARDRESET : 0;
+	csra = readb_relaxed(priv->base + RWTCSRA);
+	priv->wdev.bootstatus = csra & RWTCSRA_WOVF ? WDIOF_CARDRESET : 0;
 	pm_runtime_put(&pdev->dev);
 
 	if (!priv->clk_rate) {
@@ -245,6 +246,13 @@ static int rwdt_probe(struct platform_device *pdev)
 	ret = watchdog_init_timeout(&priv->wdev, 0, &pdev->dev);
 	if (ret)
 		dev_warn(&pdev->dev, "Specified timeout value invalid, using default\n");
+
+	/* Check if FW enabled the watchdog */
+	if (csra & RWTCSRA_TME) {
+		/* Ensure properly initialized dividers */
+		rwdt_start(&priv->wdev);
+		set_bit(WDOG_HW_RUNNING, &priv->wdev.status);
+	}
 
 	ret = watchdog_register_device(&priv->wdev);
 	if (ret < 0)
