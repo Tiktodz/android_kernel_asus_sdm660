@@ -12,6 +12,8 @@
 
 &qrd_batterydata {
 	/delete-node/ qcom,qrd_msm8998_skuk_3000mah;
+        /delete-node/ qcom,battery-thermal-coefficients;
+        /delete-node/ qcom,batt-id-range-pct;
 	#include "fg-gen3-batterydata-3292665_Huaqin_QL1650cos_5000mAh.dtsi"
 };
 
