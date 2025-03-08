@@ -4730,4 +4730,3 @@ static inline bool f2fs_is_readonly(struct f2fs_sb_info *sbi)
 
 #define EFSBADCRC	EBADMSG		/* Bad CRC detected */
 #define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
-
