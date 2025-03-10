@@ -3,6 +3,7 @@ ccflags-y += -I$(src)
 
 msm_kgsl_core-y = \
 	kgsl.o \
+	kgsl_trace.o \
 	kgsl_drawobj.o \
 	kgsl_ioctl.o \
 	kgsl_sharedmem.o \
@@ -17,7 +18,6 @@ msm_kgsl_core-y = \
 	kgsl_timeline.o \
 	kgsl_hfi.o
 
-msm_kgsl_core-$(CONFIG_DEBUG_KERNEL) += kgsl_trace.o
 msm_kgsl_core-$(CONFIG_QCOM_KGSL_IOMMU) += kgsl_iommu.o
 msm_kgsl_core-$(CONFIG_DEBUG_FS) += kgsl_debugfs.o
 msm_kgsl_core-$(CONFIG_SYNC_FILE) += kgsl_sync.o
@@ -34,6 +34,7 @@ msm_adreno-y += \
 	adreno_drawctxt.o \
 	adreno_dispatch.o \
 	adreno_snapshot.o \
+	adreno_trace.o \
 	adreno_a3xx.o \
 	adreno_a5xx.o \
 	adreno_a6xx.o \
@@ -48,10 +49,6 @@ msm_adreno-y += \
 	adreno.o \
 	adreno_cp_parser.o \
 	adreno_perfcounter.o
-
-ifdef CONFIG_DEBUG_KERNEL
-msm_adreno-y += adreno_trace.o
-endif
 
 msm_adreno-$(CONFIG_QCOM_KGSL_IOMMU) += adreno_iommu.o
 msm_adreno-$(CONFIG_QCOM_KGSL_CORESIGHT) += adreno_coresight.o
