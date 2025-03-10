@@ -64,10 +64,6 @@
 #include <linux/vmalloc.h>
 #include <linux/ksm.h>
 
-#ifdef CONFIG_KSU
-#include <linux/ksu.h>
-#endif
-
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
@@ -1897,23 +1893,11 @@ out_ret:
 	return retval;
 }
 
-#ifdef CONFIG_KSU
-extern bool ksu_execveat_hook __read_mostly;
-extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
-				 void *envp, int *flags);
-extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
-				 void *argv, void *envp, int *flags);
-#endif
-
 static int do_execveat_common(int fd, struct filename *filename,
 			      struct user_arg_ptr argv,
 			      struct user_arg_ptr envp,
 			      int flags)
 {
-#ifdef CONFIG_KSU
-		ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
-		ksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);
-#endif
 	return __do_execve_file(fd, filename, argv, envp, flags, NULL);
 }
 
@@ -1924,6 +1908,14 @@ int do_execve_file(struct file *file, void *__argv, void *__envp)
 
 	return __do_execve_file(AT_FDCWD, NULL, argv, envp, 0, file);
 }
+
+#ifdef CONFIG_KSU
+extern bool ksu_execveat_hook __read_mostly;
+extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
+				 void *envp, int *flags);
+extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
+				 void *argv, void *envp, int *flags);
+#endif
 
 int do_execve(struct filename *filename,
 	const char __user *const __user *__argv,

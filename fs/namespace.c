@@ -30,10 +30,6 @@
 #include "pnode.h"
 #include "internal.h"
 
-#ifdef CONFIG_KSU
-#include <linux/ksu.h>
-#endif
-
 /* Maximum number of mounts in a mount namespace */
 unsigned int sysctl_mount_max __read_mostly = 100000;
 

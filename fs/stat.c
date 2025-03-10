@@ -17,9 +17,6 @@
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
 #include <linux/compat.h>
-#ifdef CONFIG_KSU
-#include <linux/ksu.h>
-#endif
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
