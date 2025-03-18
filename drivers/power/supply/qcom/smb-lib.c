@@ -36,7 +36,7 @@
 #define	START_REPORT_BAT_TEMPRATURE	620
 #endif
 
-static unsigned int forced_current = 0;
+static unsigned int forced_current = 2500;
 module_param(forced_current, uint, S_IWUSR | S_IRUGO);
 
 #ifdef CONFIG_FORCE_FAST_CHARGE
