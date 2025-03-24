@@ -2,6 +2,7 @@
 qcom,3292665_huaqin_ql1626cos_5000mah_averaged_masterslave_jan8th2018 {
 	qcom, = <24>;
 	/* #3292665_Huaqin_QL1626cos_5000mAh_averaged_MasterSlave_Jan8th2018*/
+	qcom,fastchg-current-ma = <3000>;
 	qcom,max-voltage-uv = <4350000>;
 	qcom,nom-batt-capacity-mah = <5000>;
 	qcom,batt-id-kohm = <51>;
