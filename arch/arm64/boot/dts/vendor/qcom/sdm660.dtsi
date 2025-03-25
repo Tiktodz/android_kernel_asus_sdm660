@@ -293,6 +293,7 @@
 	firmware: firmware {
 		android {
 			boot_devices = "soc/c0c4000.sdhci";
+			/delete-node/ fstab;
 			compatible = "android,firmware";
 
 			vbmeta {
