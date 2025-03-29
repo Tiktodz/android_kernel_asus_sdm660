@@ -236,7 +236,7 @@ static void restart_burst(struct sched_entity *se) {
  */
 int __weak arch_asym_cpu_priority(int cpu)
 {
-	return -arch_scale_cpu_capacity(NULL, cpu);
+	return -arch_scale_cpu_capacity(cpu);
 }
 #endif
 
