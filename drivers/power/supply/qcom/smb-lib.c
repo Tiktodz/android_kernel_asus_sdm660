@@ -280,7 +280,7 @@ enum {
 	MAX_TYPES
 };
 
-static const struct apsd_result smblib_apsd_results[] = {
+static const struct apsd_result const smblib_apsd_results[] = {
 	[UNKNOWN] = {
 		.name	= "UNKNOWN",
 		.bit	= 0,
@@ -1895,6 +1895,19 @@ int smblib_get_prop_input_suspend(struct smb_charger *chg,
 	return 0;
 }
 
+#ifdef CONFIG_MACH_ASUS_SDM660
+/* Huaqin add for ZQL1650-189 by diganyun at 2018/02/01 start */
+int smblib_get_prop_charging_enabled(struct smb_charger *chg,
+				  union power_supply_propval *val)
+{
+	val->intval
+		= !((get_client_vote(chg->usb_icl_votable, USER_VOTER) == 0)
+		 && get_client_vote(chg->dc_suspend_votable, USER_VOTER));
+	return 0;
+}
+/* Huaqin add for ZQL1650-189 by diganyun at 2018/02/01 end */
+#endif
+
 int smblib_get_prop_batt_present(struct smb_charger *chg,
 				union power_supply_propval *val)
 {
@@ -2221,6 +2234,34 @@ int smblib_set_prop_input_suspend(struct smb_charger *chg,
 	power_supply_changed(chg->batt_psy);
 	return rc;
 }
+
+#ifdef CONFIG_MACH_ASUS_SDM660
+/* Huaqin add for ZQL1650-189 by diganyun at 2018/02/01 start */
+int smblib_set_prop_charging_enabled(struct smb_charger *chg,
+				  const union power_supply_propval *val)
+{
+	int rc;
+
+	/* vote 0mA when suspended */
+	rc = vote(chg->usb_icl_votable, USER_VOTER, !(bool)val->intval, 0);
+	if (rc < 0) {
+		smblib_err(chg, "Couldn't vote to %s USB rc=%d\n",
+			(bool)val->intval ? "suspend" : "resume", rc);
+		return rc;
+	}
+
+	rc = vote(chg->dc_suspend_votable, USER_VOTER, !(bool)val->intval, 0);
+	if (rc < 0) {
+		smblib_err(chg, "Couldn't vote to %s DC rc=%d\n",
+			(bool)val->intval ? "suspend" : "resume", rc);
+		return rc;
+	}
+	
+	power_supply_changed(chg->batt_psy);
+	return rc;
+}
+/* Huaqin add for ZQL1650-189 by diganyun at 2018/02/01 end */
+#endif
 
 int smblib_set_prop_batt_capacity(struct smb_charger *chg,
 				  const union power_supply_propval *val)

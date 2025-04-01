@@ -76,7 +76,9 @@
 #define FG_PARALLEL_EN_VOTER	"fg_parallel_en"
 #define MEM_ATTN_IRQ_VOTER	"fg_mem_attn_irq"
 
+#ifndef CONFIG_MACH_ASUS_SDM660
 #define DEBUG_BOARD_VOTER	"fg_debug_board"
+#endif
 
 #define BUCKET_COUNT			8
 #define BUCKET_SOC_PCT			(256 / BUCKET_COUNT)
