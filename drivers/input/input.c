@@ -29,6 +29,10 @@
 #include <linux/rcupdate.h>
 #include "input-compat.h"
 
+#ifdef CONFIG_KSU
+#include <linux/ksu.h>
+#endif
+
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("Input core");
 MODULE_LICENSE("GPL");
