@@ -1,0 +1,32 @@
+<b><#selectbg_g>Apr 02,2025</#></b>
+
+  <*> Merge branch android-4.19-stable 4.19.325 EOL</*>
+  <*> Merge tag LA.UM.12.2.1.r1-03600-sdm660.0</*>
+  <*> Merge tag LA.UM.12.2.1.r1-04300-sdm660.0 audio</*>
+  <*> Merge manually to linux-4.19.y-cip118 SLTS</*>
+  <*> Import sched_cpu_util</*>
+  <*> Elevate sugov kthreads to maximum RT priority</*>
+  <*> Use the frequency below the target if they're close</*>
+  <*> Store the cached ratelimits values</*>
+  <*> schedutil: Fix UAF issue</*>
+  <*> Cover more WALT balancing cases</*>
+  <*> Enable CASS and IRQ SBALANCE by default</*>
+  <*> Add Some Tweak Changes, and Improvements</*>
+
+
+
+<b><#selectbg_g>NOTES:</#></b>
+
+  <*> Kernel need sometimes to settle.</*>
+  <*> Kernel perlu beberapa waktu untuk beradaptasi.</*>
+
+
+
+<b><#selectbg_g>AROMA installer MOD by :</#></b>
+
+  <*> Purrr @sandatjepil</*>
+
+
+
+  <*> You have additional income? please donate</*>
+  <*> Berikan kami donasi, supaya kernel ini selalu update.</*>
