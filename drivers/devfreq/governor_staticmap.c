@@ -17,8 +17,6 @@
 #include <linux/devfreq.h>
 #include "governor.h"
 
-extern unsigned int is_cpu_overclocked;
-
 struct core_dev_map {
 	unsigned int core_mhz;
 	unsigned int target_freq;
@@ -285,11 +283,7 @@ static int gov_static_map_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if ((is_cpu_overclocked < 1) && of_machine_is_compatible("qcom,sdm636"))
-		d->freq_map = init_core_dev_map(dev, NULL, "qcom,core-dev-table-sts");
-	else
-		d->freq_map = init_core_dev_map(dev, NULL, "qcom,core-dev-table");
-	
+	d->freq_map = init_core_dev_map(dev, NULL, "qcom,core-dev-table");
 	if (!d->freq_map) {
 		dev_err(dev, "Couldn't find the core-dev freq table!\n");
 		return -EINVAL;
