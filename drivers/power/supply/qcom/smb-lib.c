@@ -2314,9 +2314,11 @@ int smblib_set_prop_system_temp_level(struct smb_charger *chg,
 
 	chg->system_temp_level = val->intval;
 
+#ifndef CONFIG_FORCE_FAST_CHARGE
 	if (chg->system_temp_level == chg->thermal_levels)
 		return vote(chg->chg_disable_votable,
 			THERMAL_DAEMON_VOTER, true, 0);
+#endif
 
 	vote(chg->chg_disable_votable, THERMAL_DAEMON_VOTER, false, 0);
 //	if (chg->system_temp_level == 0)
