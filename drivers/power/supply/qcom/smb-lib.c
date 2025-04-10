@@ -3872,7 +3872,11 @@ static int jeita_status_regs_write(u8 chg_en, u8 FV_CFG, u8 FCC)
 	return 0;
 }
 
+#ifdef CONFIG_FORCE_FAST_CHARGE
+void jeita_rule(struct smb_charger *chg)
+#else
 void jeita_rule(void)
+#endif
 {
 	static int state = JEITA_STATE_INITIAL;
 	int rc;
@@ -3944,6 +3948,14 @@ void jeita_rule(void)
 		FCC_reg_value = SMBCHG_FAST_CHG_CURRENT_VALUE_1500MA;
 		break;
 	}
+
+#ifdef CONFIG_FORCE_FAST_CHARGE
+	if (const_icl_enable) {
+		vote(chg->usb_icl_votable, FORCE_FAST_CHARGE_VOTER,
+			true, CONST_ICL_UA);
+	}
+#endif
+
 	rc = jeita_status_regs_write(charging_enable, FV_CFG_reg_value, FCC_reg_value);
 	if (rc < 0)
 		printk("%s: Couldn't write jeita_status_register rc = %d\n", __func__, rc);
@@ -3961,7 +3973,11 @@ void asus_min_monitor_work(struct work_struct *work)
 		return;
 	}
 
+#ifdef CONFIG_FORCE_FAST_CHARGE
+	jeita_rule(smbchg_dev);
+#else
 	jeita_rule();
+#endif
 /* Huaqin add for ZQL1650-281 by diganyun at 2018/02/08 end */
 	if (asus_get_prop_usb_present(smbchg_dev)) {
 /* Huaqin add for ZQL1650-68 systme suspend 1 min run sw jeita by fangaijun at 2018/02/06 start */
