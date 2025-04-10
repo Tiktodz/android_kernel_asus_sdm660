@@ -3728,6 +3728,7 @@ void asus_batt_RTC_work(struct work_struct *dat)
 #define ICL_1500mA	0x3C
 #define ICL_1900mA	0x4C
 #define ICL_2000mA	0x50
+#define ICL_2500mA	0x64
 #define ICL_2850mA	0x72
 #define ICL_3000mA	0x78
 #define ICL_4000mA	0xF8
@@ -3761,6 +3762,7 @@ void smblib_asus_monitor_start(struct smb_charger *chg, int time)
 #define SMBCHG_FAST_CHG_CURRENT_VALUE_1500MA 	0x3C
 #define SMBCHG_FAST_CHG_CURRENT_VALUE_2000MA 	0x50
 #define SMBCHG_FAST_CHG_CURRENT_VALUE_2050MA 	0x52
+#define SMBCHG_FAST_CHG_CURRENT_VALUE_2500MA 	0x64
 #define SMBCHG_FAST_CHG_CURRENT_VALUE_3000MA 	0x78
 #define SMBCHG_FAST_CHG_CURRENT_VALUE_4000MA 0xF8
 enum JEITA_state {
