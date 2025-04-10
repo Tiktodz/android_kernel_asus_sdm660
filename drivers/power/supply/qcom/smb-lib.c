@@ -3980,7 +3980,7 @@ void asus_chg_flow_work(struct work_struct *work)
 {
 	const struct apsd_result *apsd_result;
 	int rc;
-	u8 set_icl;
+	u8 set_icl = ICL_2500mA;
 	u8 USBIN_1_cc;
 	if (!asus_get_prop_usb_present(smbchg_dev)) {
 		smblib_uusb_removal(smbchg_dev);
@@ -4007,7 +4007,6 @@ void asus_chg_flow_work(struct work_struct *work)
 /* Huaqin add for ZQL1650-71 before BC1.2 500mA before adapter id 1000mA by fangaijun at 2018/4/4 end */
 #endif
 /* Huaqin add for ZQL1650-1287 factory version remove before BC1.2 500mA before adapter id 1000mA by fangaijun at 2018/5/8 end */
-			set_icl = ICL_4000mA;
 		rc = smblib_masked_write(smbchg_dev, USBIN_CURRENT_LIMIT_CFG_REG,
 			USBIN_CURRENT_LIMIT_MASK, set_icl);
 		if (rc < 0)
@@ -4019,7 +4018,6 @@ void asus_chg_flow_work(struct work_struct *work)
 	case CDP_CHARGER_BIT:
 		printk("asus_chg_flow_work enter CDP_CHARGER_BIT\n");
 /* Huaqin modify for ZQL1650 modify CDP charging current by fangaijun at 2018/04/18 start*/
-			set_icl = ICL_4000mA;
 /* Huaqin modify for ZQL1650 modify CDP charging current by fangaijun at 2018/04/18 end*/
 		rc = smblib_masked_write(smbchg_dev, USBIN_CURRENT_LIMIT_CFG_REG,     //reg=1370   bit7-bit0=USBIN_CURRENT_LIMIT
 			USBIN_CURRENT_LIMIT_MASK, set_icl);
@@ -4039,7 +4037,6 @@ void asus_chg_flow_work(struct work_struct *work)
 		break;
 	case OCP_CHARGER_BIT:
 		printk("asus_chg_flow_work enter OCP_CHARGER_BIT");
-			set_icl = ICL_4000mA;                                                                                                                                 //reg=1370 bit7-bit0
 		rc = smblib_masked_write(smbchg_dev, USBIN_CURRENT_LIMIT_CFG_REG,
 			USBIN_CURRENT_LIMIT_MASK, set_icl);
 		if (rc < 0)
@@ -4058,7 +4055,6 @@ void asus_chg_flow_work(struct work_struct *work)
 			printk("%s: Couldn't read fast_CURRENT_LIMIT_CFG_REG\n", __func__);
 
 		// Write ICL for DCP
-		set_icl = ICL_4000mA;
 		rc = smblib_masked_write(smbchg_dev, USBIN_CURRENT_LIMIT_CFG_REG,
 			USBIN_CURRENT_LIMIT_MASK, set_icl);
 		if (rc < 0)
