@@ -338,14 +338,15 @@ struct cpufreq_driver {
 };
 
 /* flags */
-#define CPUFREQ_NEED_UPDATE_LIMITS	(1 << 0)	/* driver isn't removed even if
-							   all ->init() calls failed */
-#define CPUFREQ_CONST_LOOPS		(1 << 1)	/* loops_per_jiffy or other
-							   kernel "constants" aren't
-							   affected by frequency
-							   transitions */
-#define CPUFREQ_PM_NO_WARN		(1 << 2)	/* don't warn on suspend/resume
-							   speed mismatches */
+#define CPUFREQ_STICKY		(1 << 0)	/* driver isn't removed even if
+						   all ->init() calls failed */
+#define CPUFREQ_CONST_LOOPS	(1 << 1)	/* loops_per_jiffy or other
+						   kernel "constants" aren't
+						   affected by frequency
+						   transitions */
+#define CPUFREQ_PM_NO_WARN	(1 << 2)	/* don't warn on suspend/resume
+						   speed mismatches */
+
 /*
  * This should be set by platforms having multiple clock-domains, i.e.
  * supporting multiple policies. With this sysfs directories of governor would
