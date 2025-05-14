@@ -34,6 +34,7 @@
 
 #ifdef CONFIG_KSU
 #include <linux/ksu.h>
+#endif
 
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 extern bool susfs_is_current_ksu_domain(void);
