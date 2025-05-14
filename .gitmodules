@@ -1,3 +1,4 @@
 [submodule "KernelSU-Next"]
 	path = KernelSU-Next
-	url = https://github.com/texascake/KernelSU-Next
+	branch = next-susfs
+	url = https://github.com/Kneba/KernelSU-Next
