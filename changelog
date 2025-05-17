@@ -1,16 +1,16 @@
-<b><#selectbg_g>Apr 02,2025</#></b>
+<b><#selectbg_g>May 18,2025</#></b>
 
-  <*> Merge branch android-4.19-stable 4.19.325 EOL</*>
-  <*> Merge tag LA.UM.12.2.1.r1-03600-sdm660.0</*>
-  <*> Merge tag LA.UM.12.2.1.r1-04300-sdm660.0 audio</*>
-  <*> Merge manually to linux-4.19.y-cip118 SLTS</*>
-  <*> Import sched_cpu_util</*>
-  <*> Elevate sugov kthreads to maximum RT priority</*>
-  <*> Use the frequency below the target if they're close</*>
-  <*> Store the cached ratelimits values</*>
-  <*> schedutil: Fix UAF issue</*>
-  <*> Cover more WALT balancing cases</*>
-  <*> Enable CASS and IRQ SBALANCE by default</*>
+  <*> Reapply Xiaomi's Perf Humantask feature</*>
+  <*> UPSTREAM: zstd: bump to v1.5.7</*>
+  <*> media: v4l2-core: update Reserve /dev/videoX</*>
+  <*> media: v4l2-core: Reserve /dev/videoX for our internal hardware</*>
+  <*> Merge CIP manually to linux-4.19.y-cip119</*>
+  <*> Merge CIP manually to linux-4.19.y-cip120</*>
+  <*> power: smb-lib: adapt bypass charger</*>
+  <*> Disable dynamic bitclk and dynamic fps support</*>
+  <*> usb: gadget: function: Import uvc from 6.10-rc5</*>
+  <*> Enable sched thermal pressure</*>
+  <*> Enable and disable some configs</*>
   <*> Add Some Tweak Changes, and Improvements</*>
 
 
