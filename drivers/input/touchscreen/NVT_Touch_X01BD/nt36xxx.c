@@ -984,7 +984,7 @@ int nvt_test_node_init(struct platform_device *tpinfo_device)
 #define GESTURE_SLIDE_LEFT      23
 #define GESTURE_SLIDE_RIGHT     24
 /* customized gesture id */
-#define DATA_PROTOCOL           31
+#define DATA_PROTOCOL           30
 
 /* function page definition */
 #define FUNCPAGE_GESTURE         1
