@@ -1820,6 +1820,7 @@ static inline bool may_mandlock(void)
 }
 #endif
 
+#ifdef CONFIG_KSU
 static int can_umount(const struct path *path, int flags)
 {
 	struct mount *mnt = real_mount(path->mnt);
@@ -1852,6 +1853,7 @@ int path_umount(struct path *path, int flags)
 	mntput_no_expire(mnt);
 	return ret;
 }
+#endif
 
 int ksys_umount(char __user *name, int flags)
 {
