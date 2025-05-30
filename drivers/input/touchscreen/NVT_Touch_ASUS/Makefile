@@ -5,4 +5,8 @@
 
 # Each configuration option enables a list of files.
 
+ifeq ($(strip $(CONFIG_MACH_ASUS_X00TD)),y)
+ccflags-y += -I$(srctree)/drivers/video/fbdev/msm
+endif
+
 obj-$(CONFIG_TOUCHSCREEN_NT36xxx_ASUS) += nt36xxx.o nt36xxx_fw_update.o nt36xxx_ext_proc.o

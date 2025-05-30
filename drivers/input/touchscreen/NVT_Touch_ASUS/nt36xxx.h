@@ -71,11 +71,10 @@
 
 
 //---Touch info.---
-#ifdef CONFIG_MACH_ASUS_X01BD
 #define TOUCH_DEFAULT_MAX_WIDTH 1080
+#ifdef CONFIG_MACH_ASUS_X01BD
 #define TOUCH_DEFAULT_MAX_HEIGHT 2280
 #else //X00TD
-#define TOUCH_DEFAULT_MAX_WIDTH 1080
 #define TOUCH_DEFAULT_MAX_HEIGHT 2160
 #endif
 
@@ -98,11 +97,29 @@ extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
 #if WAKEUP_GESTURE
 extern const uint16_t gesture_key_array[];
 #endif
+
+#ifdef CONFIG_MACH_ASUS_X01BD
+#define BOOT_UPDATE_FIRMWARE 1
+//huaqin modify for update firmware by limengxia at 20190213 start
+#define BOOT_UPDATE_FIRMWARE_NAME "novatek_ts_fw_v8D.bin"
+//huaqin modify for update firmware by limengxia at 20190213 end
+/* Huaqin add ZQL1820-663 by zhangxiude for ESD  function on start */
+#define NVT_TOUCH_ESD_PROTECT 0
+/* Huaqin add ZQL1820-663 by zhangxiude for ESD  function on end */
+#elif defined(CONFIG_MACH_ASUS_X00TD)
+// Huaqin add for nvt_tp check function. by zhengwu.lu. at  2018/03/01  start
+#define BOOT_UPDATE_FIRMWARE 1
+#define DJ_BOOT_UPDATE_FIRMWARE_NAME "novatek_ts_fw_dj.bin"
+#define TXD_BOOT_UPDATE_FIRMWARE_NAME "novatek_ts_fw_txd.bin"
+#define NVT_TOUCH_ESD_PROTECT 1
+// Huaqin add for nvt_tp check function. by zhengwu.lu. at  2018/03/01  end
+#else
 #define BOOT_UPDATE_FIRMWARE 0
 #define BOOT_UPDATE_FIRMWARE_NAME "novatek_ts_fw.bin"
+#define NVT_TOUCH_ESD_PROTECT 0
+#endif
 
 //---ESD Protect.---
-#define NVT_TOUCH_ESD_PROTECT 0
 #define NVT_TOUCH_ESD_CHECK_PERIOD 1500	/* ms */
 
 struct nvt_ts_data {
