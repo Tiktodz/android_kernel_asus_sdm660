@@ -98,8 +98,9 @@ extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
 extern const uint16_t gesture_key_array[];
 #endif
 
+#define BOOT_UPDATE_FIRMWARE 0
+
 #ifdef CONFIG_MACH_ASUS_X01BD
-#define BOOT_UPDATE_FIRMWARE 1
 //huaqin modify for update firmware by limengxia at 20190213 start
 #define BOOT_UPDATE_FIRMWARE_NAME "novatek_ts_fw_v8D.bin"
 //huaqin modify for update firmware by limengxia at 20190213 end
@@ -108,13 +109,11 @@ extern const uint16_t gesture_key_array[];
 /* Huaqin add ZQL1820-663 by zhangxiude for ESD  function on end */
 #elif defined(CONFIG_MACH_ASUS_X00TD)
 // Huaqin add for nvt_tp check function. by zhengwu.lu. at  2018/03/01  start
-#define BOOT_UPDATE_FIRMWARE 1
 #define DJ_BOOT_UPDATE_FIRMWARE_NAME "novatek_ts_fw_dj.bin"
 #define TXD_BOOT_UPDATE_FIRMWARE_NAME "novatek_ts_fw_txd.bin"
 #define NVT_TOUCH_ESD_PROTECT 1
 // Huaqin add for nvt_tp check function. by zhengwu.lu. at  2018/03/01  end
 #else
-#define BOOT_UPDATE_FIRMWARE 0
 #define BOOT_UPDATE_FIRMWARE_NAME "novatek_ts_fw.bin"
 #define NVT_TOUCH_ESD_PROTECT 0
 #endif
