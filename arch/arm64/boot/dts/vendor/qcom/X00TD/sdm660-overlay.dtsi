@@ -16,7 +16,7 @@
 		    status = "ok";
 			compatible = "removed-dma-pool", "ramoops";
 			no-map;
-			reg = <0x0 0x9ff00000 0x0 0x00400000>;
+			reg = <0x0 0xb0000000 0x0 0x400000>;
 			console-size = <0x200000>;
 			pmsg-size = <0x200000>;
 			max-reason = <0x4>;
