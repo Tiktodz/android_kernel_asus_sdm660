@@ -373,10 +373,6 @@ static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz,
 		(time64_t)record->time.tv_sec,
 		record->time.tv_nsec / 1000,
 		record->compressed ? 'C' : 'D');
-	if (WARN_ON_ONCE(!hdr))
-		return 0;
-
-	len = strlen(hdr);
 	persistent_ram_write(prz, hdr, len);
 
 	return len;
