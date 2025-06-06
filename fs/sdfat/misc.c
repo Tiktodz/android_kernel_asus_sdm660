@@ -39,8 +39,10 @@
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
 #include <linux/time.h>
+#include <linux/blkdev.h>
 #include "sdfat.h"
 #include "version.h"
+
 
 #ifdef CONFIG_SDFAT_SUPPORT_STLOG
 #ifdef CONFIG_PROC_FSLOG
@@ -52,6 +54,14 @@
 #define ST_LOG(fmt, ...)
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+#include <linux/ktime.h>
+#ifndef _TIME_T
+#define _TIME_T
+typedef ktime_t         time_t;
+#endif
+#endif
+
 /*************************************************************************
  * FUNCTIONS WHICH HAS KERNEL VERSION DEPENDENCY
  *************************************************************************/
@@ -61,7 +71,11 @@ static struct kobject sdfat_uevent_kobj;
 int sdfat_uevent_init(struct kset *sdfat_kset)
 {
 	int err;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
+	const struct kobj_type *ktype = get_ktype(&sdfat_kset->kobj);
+#else
 	struct kobj_type *ktype = get_ktype(&sdfat_kset->kobj);
+#endif
 
 	sdfat_uevent_kobj.kset = sdfat_kset;
 	err = kobject_init_and_add(&sdfat_uevent_kobj, ktype, NULL, "uevent");
@@ -203,20 +217,41 @@ EXPORT_SYMBOL(sdfat_log_version);
 #define SECS_PER_HOUR   (60 * SECS_PER_MIN)
 #define SECS_PER_DAY    (24 * SECS_PER_HOUR)
 
+/* do not use time_t directly to prevent compile errors on 32bit kernel */
+#define time_do_div(ori, base)	\
+({				\
+	u64 __ori = ori;	\
+	do_div(__ori, base);	\
+	(time_t)__ori;		\
+})
+
+#define time_do_mod(ori, base)		\
+({					\
+	u64 __ori = ori;		\
+	(time_t)do_div(__ori, base);	\
+})
+
 #define MAKE_LEAP_YEAR(leap_year, year)                         \
-	do {                                                    \
-		/* 2100 isn't leap year */                      \
-		if (unlikely(year > NO_LEAP_YEAR_2100))         \
-			leap_year = ((year + 3) / 4) - 1;       \
-		else                                            \
-			leap_year = ((year + 3) / 4);           \
-	} while (0)
+({								\
+	/* 2100 isn't leap year */				\
+	if (unlikely(year > NO_LEAP_YEAR_2100))			\
+		leap_year = time_do_div((year + 3), 4) - 1;	\
+	else							\
+		leap_year = time_do_div((year + 3), 4);		\
+})
 
 /* Linear day numbers of the respective 1sts in non-leap years. */
 static time_t accum_days_in_year[] = {
 	/* Month : N 01  02  03  04  05  06  07  08  09  10  11  12 */
 	0, 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 0, 0, 0,
 };
+
+static inline int sdfat_tz_offset(struct sdfat_sb_info *sbi)
+{
+	if (sbi->options.tz_set)
+		return -sbi->options.time_offset;
+	return sys_tz.tz_minuteswest;
+}
 
 #define TIMEZONE_SEC(x)	((x) * 15 * SECS_PER_MIN)
 /* Convert a FAT time/date pair to a UNIX date (seconds since 1 1 70). */
@@ -238,15 +273,11 @@ void sdfat_time_fat2unix(struct sdfat_sb_info *sbi, sdfat_timespec_t *ts,
 
 	ts->tv_nsec = 0;
 
-	/* Treat as local time */
-	if (!sbi->options.tz_utc && !tp->Timezone.valid) {
-		ts->tv_sec += sys_tz.tz_minuteswest * SECS_PER_MIN;
+	/* Treat as local time or UTC with time_offset */
+	if (!tp->Timezone.valid) {
+		ts->tv_sec += sdfat_tz_offset(sbi) * SECS_PER_MIN;
 		return;
 	}
-
-	/* Treat as UTC time */
-	if (!tp->Timezone.valid)
-		return;
 
 	/* Treat as UTC time, but need to adjust timezone to UTC0 */
 	if (tp->Timezone.off <= 0x3F)
@@ -267,13 +298,13 @@ void sdfat_time_unix2fat(struct sdfat_sb_info *sbi, sdfat_timespec_t *ts,
 
 	tp->Timezone.value = 0x00;
 
-	/* Treats as local time with proper time */
-	if (tz_valid || !sbi->options.tz_utc) {
-		second -= sys_tz.tz_minuteswest * SECS_PER_MIN;
-		if (tz_valid) {
-			tp->Timezone.valid = 1;
-			tp->Timezone.off = TIMEZONE_CUR_OFFSET();
-		}
+	/* Always set as UTC0 */
+	if (tz_valid) {
+		tp->Timezone.valid = 1;
+		tp->Timezone.off = 0;
+	} else {
+		/* Treats as local time with proper time */
+		second -= sdfat_tz_offset(sbi) * SECS_PER_MIN;
 	}
 
 	/* Jan 1 GMT 00:00:00 1980. But what about another time zone? */
@@ -298,8 +329,8 @@ void sdfat_time_unix2fat(struct sdfat_sb_info *sbi, sdfat_timespec_t *ts,
 	}
 #endif
 
-	day = second / SECS_PER_DAY - DAYS_DELTA_DECADE;
-	year = day / 365;
+	day = time_do_div(second, SECS_PER_DAY) - DAYS_DELTA_DECADE;
+	year = time_do_div(day, 365);
 
 	MAKE_LEAP_YEAR(ld, year);
 	if (year * 365 + ld > day)
@@ -320,12 +351,12 @@ void sdfat_time_unix2fat(struct sdfat_sb_info *sbi, sdfat_timespec_t *ts,
 	}
 	day -= accum_days_in_year[month];
 
-	tp->Second  = second % SECS_PER_MIN;
-	tp->Minute  = (second / SECS_PER_MIN) % 60;
-	tp->Hour = (second / SECS_PER_HOUR) % 24;
-	tp->Day  = day + 1;
-	tp->Month  = month;
-	tp->Year = year;
+	tp->Second = (u16)time_do_mod(second, SECS_PER_MIN);
+	tp->Minute = (u16)time_do_mod(time_do_div(second, SECS_PER_MIN), 60);
+	tp->Hour = (u16)time_do_mod(time_do_div(second, SECS_PER_HOUR), 24);
+	tp->Day  = (u16)(day + 1);
+	tp->Month  = (u16)month;
+	tp->Year = (u16)year;
 }
 
 TIMESTAMP_T *tm_now(struct inode *inode, TIMESTAMP_T *tp)
