@@ -659,7 +659,7 @@
 	cpuss-0-step {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
-		thermal-governor = "step_wise";
+		thermal-governor = "user_space";
 		thermal-sensors = <&tsens 1>;
 		wake-capable-sensor;
 		trips {
@@ -697,7 +697,7 @@
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-sensors = <&tsens 3>;
-		thermal-governor = "step_wise";
+		thermal-governor = "user_space";
 		wake-capable-sensor;
 		trips {
 			cpu4_0_config: cpu4-0-config {
@@ -719,7 +719,7 @@
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-sensors = <&tsens 4>;
-		thermal-governor = "step_wise";
+		thermal-governor = "user_space";
 		wake-capable-sensor;
 		trips {
 			cpu5_0_config: cpu5-0-config {
@@ -741,7 +741,7 @@
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-sensors = <&tsens 5>;
-		thermal-governor = "step_wise";
+		thermal-governor = "user_space";
 		wake-capable-sensor;
 		trips {
 			cpu6_0_config: cpu6-0-config {
@@ -763,7 +763,7 @@
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-sensors = <&tsens 6>;
-		thermal-governor = "step_wise";
+		thermal-governor = "user_space";
 		wake-capable-sensor;
 		trips {
 			cpu7_1_config: cpu7-1-config {
