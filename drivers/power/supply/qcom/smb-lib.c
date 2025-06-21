@@ -4807,7 +4807,7 @@ static void smblib_force_legacy_icl(struct smb_charger *chg, int pst)
 		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, false, 0);
 		break;
 	case POWER_SUPPLY_TYPE_USB_CDP:
-		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 2500000);
+		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 3300000);
 		break;
 	case POWER_SUPPLY_TYPE_USB_DCP:
 #ifdef CONFIG_MACH_ASUS_SDM660
@@ -4816,7 +4816,7 @@ static void smblib_force_legacy_icl(struct smb_charger *chg, int pst)
 			printk("%s: Couldn't read fast_CURRENT_LIMIT_CFG_REG\n", __func__);
 #endif
 		
-		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 2500000);
+		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 3300000);
 
 #ifdef CONFIG_MACH_ASUS_SDM660
 		rc = smblib_read(chg, USBIN_CURRENT_LIMIT_CFG_REG, &USBIN_1_cc);   //reg=1370
@@ -4829,11 +4829,11 @@ static void smblib_force_legacy_icl(struct smb_charger *chg, int pst)
 		 * limit ICL to 100mA, the USB driver will enumerate to check
 		 * if this is a SDP and appropriately set the current
 		 */
-		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 2500000);
+		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 3300000);
 		break;
 	case POWER_SUPPLY_TYPE_USB_HVDCP:
 	case POWER_SUPPLY_TYPE_USB_HVDCP_3:
-		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 2500000);
+		vote(chg->usb_icl_votable, LEGACY_UNKNOWN_VOTER, true, 3300000);
 		break;
 	default:
 		smblib_err(chg, "Unknown APSD %d; forcing suspend\n", pst);
