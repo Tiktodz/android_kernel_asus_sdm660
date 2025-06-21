@@ -1,6 +1,0 @@
-comment "Xiaomi Optimization Features"
-
-config PERF_HUMANTASK
-	bool "Xiaomi's perf humantask feature"
-	help
-	  Support for Xiaomi's perf humantask feature.
