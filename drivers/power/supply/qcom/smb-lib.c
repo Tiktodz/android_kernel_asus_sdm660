@@ -2871,7 +2871,7 @@ int smblib_get_prop_input_current_settled(struct smb_charger *chg,
 					  union power_supply_propval *val)
 {
 #ifdef CONFIG_FORCE_FAST_CHARGE
-	if (const_icl_enable && asus_flow_processing) {
+	if (const_icl_enable) {
 		val->intval = CONST_ICL_UA;
 		return 0;
 	} else {
