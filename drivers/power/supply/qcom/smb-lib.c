@@ -4093,7 +4093,7 @@ void asus_adapter_adc_work(struct work_struct *work)
 /* Huaqin modify for ZQL1650 optimize adapter id input_suspend by fangaijun at 2018/03/22 end*/
 
 	// Set for all chargers
-	usb_max_current = ICL_2500mA;
+	usb_max_current = ICL_3000mA;
 	rc = smblib_set_usb_suspend(smbchg_dev, 0);
 	if (rc < 0)
 		printk("%s: Couldn't set 1340_USBIN_SUSPEND_BIT 0\n", __func__);
