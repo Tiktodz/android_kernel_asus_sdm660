@@ -2886,13 +2886,13 @@ int smblib_get_prop_die_health(struct smb_charger *chg,
 	return 0;
 }
 
-#define SDP_CURRENT_UA			3300000
-#define CDP_CURRENT_UA			3300000
+#define SDP_CURRENT_UA			900000
+#define CDP_CURRENT_UA			1500000
 
 #ifdef CONFIG_MACH_ASUS_SDM660
-#define DCP_CURRENT_UA			3300000
+#define DCP_CURRENT_UA			3000000
 #else
-#define DCP_CURRENT_UA			1500000
+#define DCP_CURRENT_UA			2000000
 #endif
 
 #define HVDCP_CURRENT_UA		3300000
@@ -3621,7 +3621,7 @@ void asus_batt_RTC_work(struct work_struct *dat)
 	unsigned long batflags;
 	struct timespec new_batAlarm_time;
 	struct timespec mtNow;
-	int RTCSetInterval = 60;
+	int RTCSetInterval = 10800;
 
 	if (!smbchg_dev) {
 		CHG_DBG("%s: driver not ready yet!\n", __func__);
@@ -3653,6 +3653,7 @@ void asus_batt_RTC_work(struct work_struct *dat)
 #define ICL_1500mA	0x3C
 #define ICL_1900mA	0x4C
 #define ICL_2000mA	0x50
+#define ICL_2500mA	0x64
 #define ICL_2850mA	0x72
 #define ICL_3000mA	0x78
 #define ICL_4000mA	0xF8
@@ -3686,6 +3687,9 @@ void smblib_asus_monitor_start(struct smb_charger *chg, int time)
 #define SMBCHG_FAST_CHG_CURRENT_VALUE_1500MA 	0x3C
 #define SMBCHG_FAST_CHG_CURRENT_VALUE_2000MA 	0x50
 #define SMBCHG_FAST_CHG_CURRENT_VALUE_2050MA 	0x52
+#define SMBCHG_FAST_CHG_CURRENT_VALUE_2500MA	0x64
+#define SMBCHG_FAST_CHG_CURRENT_VALUE_2850MA	0x72
+#define SMBCHG_FAST_CHG_CURRENT_VALUE_3000MA 	0x78
 #define SMBCHG_FAST_CHG_CURRENT_VALUE_3000MA 	0x78
 #define SMBCHG_FAST_CHG_CURRENT_VALUE_4000MA 0xF8
 enum JEITA_state {
@@ -3836,7 +3840,7 @@ void jeita_rule(void)
 	case JEITA_STATE_LESS_THAN_0:
 		charging_enable = EN_BAT_CHG_EN_COMMAND_FALSE;
 		FV_CFG_reg_value = SMBCHG_FLOAT_VOLTAGE_VALUE_4P357;
-		FCC_reg_value = SMBCHG_FAST_CHG_CURRENT_VALUE_850MA;
+		FCC_reg_value = SMBCHG_FAST_CHG_CURRENT_VALUE_1500MA;
 		break;
 	case JEITA_STATE_RANGE_0_to_100:
 		charging_enable = EN_BAT_CHG_EN_COMMAND_TRUE;

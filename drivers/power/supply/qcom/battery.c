@@ -333,6 +333,7 @@ static int get_settled_split(struct pl_data *chip, int *main_icl_ua,
 
 	if (!get_effective_result_locked(chip->pl_disable_votable)) {
 		/* read the aicl settled value */
+		pval.intval = 3000000;
 		rc = power_supply_get_property(chip->main_psy,
 			       POWER_SUPPLY_PROP_INPUT_CURRENT_SETTLED, &pval);
 		if (rc < 0) {
@@ -418,7 +419,7 @@ static void split_settled(struct pl_data *chip)
 	 *	Set slave ICL then main ICL.
 	 */
 	if (slave_ua > chip->pl_settled_ua) {
-		pval.intval = main_ua;
+		pval.intval = 3000000;
 		/* Set ICL on main charger */
 		rc = power_supply_set_property(chip->main_psy,
 				POWER_SUPPLY_PROP_CURRENT_MAX, &pval);
@@ -446,7 +447,7 @@ static void split_settled(struct pl_data *chip)
 			return;
 		}
 
-		pval.intval = main_ua;
+		pval.intval = 3000000;
 		/* Set ICL on main charger */
 		rc = power_supply_set_property(chip->main_psy,
 				POWER_SUPPLY_PROP_CURRENT_MAX, &pval);
@@ -932,7 +933,7 @@ static int pl_fcc_main_vote_callback(struct votable *votable, void *data,
 	if (!is_main_available(chip))
 		return 0;
 
-	pval.intval = fcc_main_ua;
+	pval.intval = 3000000;
 	return  power_supply_set_property(chip->main_psy,
 			  POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 			  &pval);
@@ -1214,7 +1215,7 @@ static int pl_fv_vote_callback(struct votable *votable, void *data,
 	union power_supply_propval pval = {0, };
 	int rc = 0;
 
-	if (fv_uv < 0)
+	if (fv_uv < 3000000)
 		return 0;
 
 	if (!chip->main_psy)
@@ -1267,7 +1268,7 @@ static int pl_fv_vote_callback(struct votable *votable, void *data,
 	return 0;
 }
 
-#define ICL_STEP_UA	25000
+#define ICL_STEP_UA 100000  // increased for a larger step
 #define PL_DELAY_MS     3000
 static int usb_icl_vote_callback(struct votable *votable, void *data,
 			int icl_ua, const char *client)
@@ -1291,7 +1292,7 @@ static int usb_icl_vote_callback(struct votable *votable, void *data,
 	vote(chip->pl_disable_votable, ICL_CHANGE_VOTER, true, 0);
 
 	/*
-	 * if (ICL < 1400)
+	 * if (ICL < 2000)
 	 *	disable parallel charger using USBIN_I_VOTER
 	 * else
 	 *	instead of re-enabling here rely on status_changed_work
@@ -1299,7 +1300,7 @@ static int usb_icl_vote_callback(struct votable *votable, void *data,
 	 *	unvote USBIN_I_VOTER) the status_changed_work enables
 	 *	USBIN_I_VOTER based on settled current.
 	 */
-	if (icl_ua <= 1400000)
+	if (icl_ua <= 2000000)
 		vote(chip->pl_enable_votable_indirect, USBIN_I_VOTER, false, 0);
 	else
 		schedule_delayed_work(&chip->status_change_work,
@@ -1317,7 +1318,8 @@ static int usb_icl_vote_callback(struct votable *votable, void *data,
 
 	/* rerun AICL if new ICL is above settled ICL */
 	if (icl_ua > pval.intval)
-		rerun_aicl = true;
+		rerun_aicl = false; // skip for rerun AICL
+
 
 	if (rerun_aicl && (chip->wa_flags & AICL_RERUN_WA_BIT)) {
 		/* set a lower ICL */
@@ -1328,7 +1330,7 @@ static int usb_icl_vote_callback(struct votable *votable, void *data,
 	}
 
 	/* set the effective ICL */
-	pval.intval = icl_ua;
+	pval.intval = 3000000;
 	power_supply_set_property(chip->main_psy,
 			POWER_SUPPLY_PROP_CURRENT_MAX,
 			&pval);
@@ -1400,6 +1402,7 @@ static int pl_disable_vote_callback(struct votable *votable,
 	chip->fcc_stepper_enable = pval.intval;
 	pr_debug("FCC Stepper %s\n", pval.intval ? "enabled" : "disabled");
 
+	pval.intval = 3000000;
 	rc = power_supply_get_property(chip->main_psy,
 			POWER_SUPPLY_PROP_MAIN_FCC_MAX, &pval);
 	if (rc < 0) {
@@ -1751,6 +1754,7 @@ static void handle_settled_icl_change(struct pl_data *chip)
 	 * call aicl split only when USBIN_USBIN and enabled
 	 * and if aicl changed
 	 */
+	pval.intval = 3000000;
 	rc = power_supply_get_property(chip->main_psy,
 			       POWER_SUPPLY_PROP_INPUT_CURRENT_SETTLED,
 			       &pval);
@@ -1769,10 +1773,10 @@ static void handle_settled_icl_change(struct pl_data *chip)
 	}
 	main_limited = pval.intval;
 
-	if ((main_limited && (main_settled_ua + chip->pl_settled_ua) < 1400000)
+	if ((main_limited && (main_settled_ua + chip->pl_settled_ua) < 2000000)
 			|| (main_settled_ua == 0)
 			|| ((total_current_ua >= 0) &&
-				(total_current_ua <= 1400000)))
+				(total_current_ua <= 2000000)))
 		vote(chip->pl_enable_votable_indirect, USBIN_I_VOTER, false, 0);
 	else
 		vote(chip->pl_enable_votable_indirect, USBIN_I_VOTER, true, 0);
