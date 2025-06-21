@@ -155,7 +155,7 @@ EXPORT_SYMBOL(synchronize_irq);
 #ifdef CONFIG_SMP
 cpumask_var_t irq_default_affinity;
 
-bool __irq_can_set_affinity(struct irq_desc *desc)
+static bool __irq_can_set_affinity(struct irq_desc *desc)
 {
 	if (!desc || !irqd_can_balance(&desc->irq_data) ||
 	    !desc->irq_data.chip || !desc->irq_data.chip->irq_set_affinity)
@@ -240,8 +240,6 @@ int irq_do_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	if (!chip || !chip->irq_set_affinity)
 		return -EINVAL;
 
-	/* IRQs only run on the first CPU in the affinity mask; reflect that */
-	mask = cpumask_of(cpumask_first(mask));
 	ret = chip->irq_set_affinity(data, mask, force);
 	switch (ret) {
 	case IRQ_SET_MASK_OK:
