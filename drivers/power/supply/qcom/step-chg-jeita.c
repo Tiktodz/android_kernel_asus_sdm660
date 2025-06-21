@@ -77,9 +77,9 @@ struct step_chg_info {
 
 static struct step_chg_info *the_chip;
 
-#define STEP_CHG_HYSTERISIS_DELAY_US		5000000 /* 5 secs */
+#define STEP_CHG_HYSTERISIS_DELAY_US		500000 /* 0.5 secs */
 
-#define BATT_HOT_DECIDEGREE_MAX			620
+#define BATT_HOT_DECIDEGREE_MAX			600
 #define GET_CONFIG_DELAY_MS		2000
 #define GET_CONFIG_RETRY_COUNT		50
 #define WAIT_BATT_ID_READY_MS		200
