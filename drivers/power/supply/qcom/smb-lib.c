@@ -41,10 +41,6 @@ module_param(forced_current, uint, S_IWUSR | S_IRUGO);
 
 #ifdef CONFIG_FORCE_FAST_CHARGE
 #include <linux/fastchg.h>
-
-static bool const_icl_enable = true;
-module_param(const_icl_enable, bool, 0644);
-#define CONST_ICL_UA 2500000
 #endif
 
 #define smblib_err(chg, fmt, ...)		\
