@@ -1343,11 +1343,9 @@ static int do_read_cd(struct fsg_common *common)
 					partial_page);
 		/* Wait for the next buffer to become available */
 		bh = common->next_buffhd_to_fill;
-		while (bh->state != BUF_STATE_EMPTY) {
-			rc = sleep_thread(common, true);
-			if (rc)
-				return rc;
-		}
+		rc = sleep_thread(common, true, bh);
+		if (rc)
+			return rc;
 		/*
 		 * If we were asked to read past the end of file,
 		 * end with an empty buffer.
