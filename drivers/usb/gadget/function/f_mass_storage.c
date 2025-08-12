@@ -3666,7 +3666,7 @@ static struct usb_function *fsg_alloc(struct usb_function_instance *fi)
 	opts->refcnt++;
 	mutex_unlock(&opts->lock);
 
-	fsg->function.name	= FSG_DRIVER_DESC;
+	fsg->function.name	= "mass_storage";
 	fsg->function.bind	= fsg_bind;
 	fsg->function.unbind	= fsg_unbind;
 	fsg->function.setup	= fsg_setup;
