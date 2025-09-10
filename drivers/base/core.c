@@ -1684,8 +1684,11 @@ static ssize_t uevent_show(struct device *dev, struct device_attribute *attr,
 	if (!env)
 		return -ENOMEM;
 
+	/* Synchronize with really_probe() */
+	device_lock(dev);
 	/* let the kset specific function add its keys */
 	retval = kset->uevent_ops->uevent(kset, &dev->kobj, env);
+	device_unlock(dev);
 	if (retval)
 		goto out;
 
@@ -3817,10 +3820,7 @@ define_dev_printk_level(_dev_info, KERN_INFO);
  * This helper implements common pattern present in probe functions for error
  * checking: print debug or error message depending if the error value is
  * -EPROBE_DEFER and propagate error upwards.
- * In case of -EPROBE_DEFER it sets also defer probe reason, which can be
- * checked later by reading devices_deferred debugfs attribute.
  * It replaces code sequence::
- *
  * 	if (err != -EPROBE_DEFER)
  * 		dev_err(dev, ...);
  * 	else
@@ -3830,11 +3830,6 @@ define_dev_printk_level(_dev_info, KERN_INFO);
  * with::
  *
  * 	return dev_err_probe(dev, err, ...);
- *
- * Note that it is deemed acceptable to use this function for error
- * prints during probe even if the @err is known to never be -EPROBE_DEFER.
- * The benefit compared to a normal dev_err() is the standardized format
- * of the error code and the fact that the error code is returned.
  *
  * Returns @err.
  *
@@ -3848,12 +3843,11 @@ int dev_err_probe(const struct device *dev, int err, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	if (err != -EPROBE_DEFER) {
-		dev_err(dev, "error %d: %pV", err, &vaf);
-	} else {
-		device_set_deferred_probe_reason(dev, &vaf);
-		dev_dbg(dev, "error %d: %pV", err, &vaf);
-	}
+	if (err != -EPROBE_DEFER)
+		dev_err(dev, "error %pe: %pV", ERR_PTR(err), &vaf);
+	else
+		dev_dbg(dev, "error %pe: %pV", ERR_PTR(err), &vaf);
+
 	va_end(args);
 
 	return err;

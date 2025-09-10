@@ -1666,7 +1666,6 @@ struct f2fs_sb_info {
 	struct f2fs_rwsem cp_rwsem;		/* blocking FS operations */
 	struct f2fs_rwsem node_write;		/* locking node writes */
 	struct f2fs_rwsem node_change;	/* locking node change */
-	struct f2fs_rwsem cp_quota_rwsem;    	/* blocking quota sync operations */
 	wait_queue_head_t cp_wait;
 	unsigned long last_time[MAX_TIME];	/* to store time in jiffies */
 	long interval_time[MAX_TIME];		/* to store thresholds */
@@ -2271,14 +2270,12 @@ static inline void f2fs_unlock_op(struct f2fs_sb_info *sbi)
 
 static inline void f2fs_lock_all(struct f2fs_sb_info *sbi)
 {
-	f2fs_down_write(&sbi->cp_quota_rwsem);
 	f2fs_down_write(&sbi->cp_rwsem);
 }
 
 static inline void f2fs_unlock_all(struct f2fs_sb_info *sbi)
 {
 	f2fs_up_write(&sbi->cp_rwsem);
-	f2fs_up_write(&sbi->cp_quota_rwsem);
 }
 
 static inline int __get_cp_reason(struct f2fs_sb_info *sbi)
@@ -3849,8 +3846,8 @@ int __init f2fs_init_bioset(void);
 void f2fs_destroy_bioset(void);
 int f2fs_init_bio_entry_cache(void);
 void f2fs_destroy_bio_entry_cache(void);
-void __submit_bio(struct f2fs_sb_info *sbi,
-		  struct bio *bio, enum page_type type);
+void f2fs_submit_bio(struct f2fs_sb_info *sbi,
+				struct bio *bio, enum page_type type);
 int f2fs_init_write_merge_io(struct f2fs_sb_info *sbi);
 void f2fs_submit_merged_write(struct f2fs_sb_info *sbi, enum page_type type);
 void f2fs_submit_merged_write_cond(struct f2fs_sb_info *sbi,
@@ -4730,4 +4727,3 @@ static inline bool f2fs_is_readonly(struct f2fs_sb_info *sbi)
 
 #define EFSBADCRC	EBADMSG		/* Bad CRC detected */
 #define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
-
