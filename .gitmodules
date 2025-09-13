@@ -1,3 +1,4 @@
-[submodule "KernelSU"]
-	path = KernelSU
-	url = https://github.com/RyuujiX/KernelSU
+[submodule "KernelSU-Next"]
+	path = KernelSU-Next
+	branch = next-susfs-dev
+	url = https://github.com/Kneba/KernelSU-Next
