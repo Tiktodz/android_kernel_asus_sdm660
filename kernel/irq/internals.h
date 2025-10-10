@@ -129,9 +129,12 @@ static inline void unregister_handler_proc(unsigned int irq,
 #ifdef CONFIG_IRQ_SBALANCE
 extern void sbalance_desc_add(struct irq_desc *desc);
 extern void sbalance_desc_del(struct irq_desc *desc);
+// Runtime gate to allow /proc/irq/*/smp_affinity writes when sbalance is off
+extern bool sbalance_enabled;
 #else
 static inline void sbalance_desc_add(struct irq_desc *desc) { }
 static inline void sbalance_desc_del(struct irq_desc *desc) { }
+static bool sbalance_enabled;
 #endif
 
 extern bool __irq_can_set_affinity(struct irq_desc *desc);

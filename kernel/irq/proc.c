@@ -145,7 +145,14 @@ static ssize_t write_irq_affinity(int type, struct file *file,
 	cpumask_var_t new_value;
 	int err;
 
-	return count;
+	/*
+	 * When SBalance is enabled, it owns IRQ affinities. Allow userspace
+	 * writes only if SBalance is disabled at runtime.
+	 */
+#ifdef CONFIG_IRQ_SBALANCE
+	if (sbalance_enabled)
+		return count;
+#endif
 	if (!irq_can_set_affinity_usr(irq) || no_irq_affinity)
 		return -EIO;
 

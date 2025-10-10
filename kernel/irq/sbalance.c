@@ -27,9 +27,15 @@
 
 #define pr_fmt(fmt) "sbalance: " fmt
 
+#include <linux/cpumask.h>
 #include <linux/freezer.h>
 #include <linux/irq.h>
+#include <linux/jiffies.h>
+#include <linux/kobject.h>
 #include <linux/list_sort.h>
+#include <linux/string.h>
+#include <linux/sysfs.h>
+
 #include "../sched/sched.h"
 #include "internals.h"
 
@@ -54,11 +60,13 @@ struct bal_irq {
 	unsigned int delta_nr;
 	unsigned int old_nr;
 	int prev_cpu;
+	unsigned long last_moved; /* jiffies of last successful migration */
 };
 
 struct bal_domain {
 	struct list_head movable_irqs;
 	unsigned int intrs;
+	unsigned int ema_intrs; /* EMA-smoothened intrs */
 	int cpu;
 };
 
@@ -67,6 +75,110 @@ static DEFINE_SPINLOCK(bal_irq_lock);
 static DEFINE_PER_CPU(struct bal_domain, balance_data);
 static DEFINE_PER_CPU(unsigned long, cpu_cap);
 static cpumask_t cpu_exclude_mask __read_mostly;
+
+/* Runtime knobs (sysfs) */
+bool sbalance_enabled = true;
+static u32 sb_poll_ms = POLL_MS;
+static u32 sb_thresh = CONFIG_IRQ_SBALANCE_THRESH;
+static u32 sb_cooldown_ms = 2000;
+static u32 sb_per_irq_min = 8;
+static char sb_blacklist[256];
+static char sb_whitelist[256];
+static bool sb_allow_cross_cluster __maybe_unused;
+
+static struct kobject *sb_kobj;
+
+/* sysfs attribute helpers: define functions/attrs at file scope */
+#define SB_ATTR_RW(_name) \
+static ssize_t _name##_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) \
+{ return sysfs_emit(buf, "%u\n", (unsigned int)_name); } \
+static ssize_t _name##_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count) \
+{ unsigned long v; if (kstrtoul(buf, 0, &v)) return -EINVAL; _name = (typeof(_name))v; return count; } \
+static struct kobj_attribute _name##_attr = __ATTR(_name, 0644, _name##_show, _name##_store)
+
+#define SB_ATTR_BOOL(_name) \
+static ssize_t _name##_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) \
+{ return sysfs_emit(buf, "%u\n", (unsigned int)_name); } \
+static ssize_t _name##_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count) \
+{ bool v; if (kstrtobool(buf, &v)) return -EINVAL; _name = v; return count; } \
+static struct kobj_attribute _name##_attr = __ATTR(_name, 0644, _name##_show, _name##_store)
+
+#define SB_ATTR_STR(_name) \
+static ssize_t _name##_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) \
+{ return sysfs_emit(buf, "%s\n", _name); } \
+static ssize_t _name##_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count) \
+{ size_t n = min(count, sizeof(_name) - 1); memcpy(_name, buf, n); _name[n] = '\0'; if (n && _name[n-1] == '\n') _name[n-1] = '\0'; return count; } \
+static struct kobj_attribute _name##_attr = __ATTR(_name, 0644, _name##_show, _name##_store)
+
+SB_ATTR_BOOL(sbalance_enabled);
+SB_ATTR_RW(sb_poll_ms);
+SB_ATTR_RW(sb_thresh);
+SB_ATTR_RW(sb_cooldown_ms);
+SB_ATTR_RW(sb_per_irq_min);
+SB_ATTR_BOOL(sb_allow_cross_cluster);
+SB_ATTR_STR(sb_blacklist);
+SB_ATTR_STR(sb_whitelist);
+
+/* exclude_cpus: cpulist <-> mask */
+static ssize_t exclude_cpus_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(&cpu_exclude_mask));
+}
+static ssize_t exclude_cpus_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	cpumask_t mask;
+	if (cpulist_parse(buf, &mask))
+		return -EINVAL;
+	cpu_exclude_mask = mask;
+	return count;
+}
+static struct kobj_attribute exclude_cpus_attr = __ATTR(exclude_cpus, 0644, exclude_cpus_show, exclude_cpus_store);
+
+/* Helpers to match action/name against comma-separated substrings */
+static bool strlist_match(const char *name, const char *list)
+{
+	const char *p = list;
+	const char *q;
+	size_t nlen, tlen;
+
+	if (!name || !*name || !list || !*list)
+		return false;
+
+	nlen = strlen(name);
+	while (*p) {
+		while (*p == ',' || *p == ' ' || *p == '\t')
+			p++;
+		if (!*p)
+			break;
+
+		q = p;
+		while (*q && *q != ',' && *q != ' ' && *q != '\t')
+			q++;
+		tlen = q - p;
+		if (tlen) {
+			size_t i;
+			for (i = 0; i + tlen <= nlen; i++) {
+				if (!memcmp(name + i, p, tlen))
+					return true;
+			}
+		}
+		p = q;
+	}
+	return false;
+}
+
+static bool irq_is_blacklisted(struct irq_desc *desc)
+{
+	struct irqaction *act = READ_ONCE(desc->action);
+	const char *aname = act ? act->name : NULL;
+	const char *dname = READ_ONCE(desc->name);
+
+	if (strlist_match(aname, sb_whitelist) || strlist_match(dname, sb_whitelist))
+		return false;
+	if (strlist_match(aname, sb_blacklist) || strlist_match(dname, sb_blacklist))
+		return true;
+	return false;
+}
 
 void sbalance_desc_add(struct irq_desc *desc)
 {
@@ -77,6 +189,7 @@ void sbalance_desc_add(struct irq_desc *desc)
 		return;
 
 	*bi = (typeof(*bi)){ .desc = desc };
+	bi->last_moved = 0;
 	spin_lock(&bal_irq_lock);
 	list_add_tail_rcu(&bi->node, &bal_irq_list);
 	spin_unlock(&bal_irq_lock);
@@ -137,6 +250,19 @@ static bool update_irq_data(struct bal_irq *bi, int *cpu)
 	return true;
 }
 
+/* EMA helper: alpha = 1/4 */
+#define EMA_SHIFT 2
+static void update_ema_for_cpu(int cpu)
+{
+	struct bal_domain *bd = per_cpu_ptr(&balance_data, cpu);
+	unsigned int x = bd->intrs;
+
+	if (!bd->ema_intrs)
+		bd->ema_intrs = x;
+	else
+		bd->ema_intrs = bd->ema_intrs - (bd->ema_intrs >> EMA_SHIFT) + (x >> EMA_SHIFT);
+}
+
 static int move_irq_to_cpu(struct bal_irq *bi, int cpu)
 {
 	struct irq_desc *desc = bi->desc;
@@ -159,6 +285,7 @@ static int move_irq_to_cpu(struct bal_irq *bi, int cpu)
 		bi->old_nr = *per_cpu_ptr(desc->kstat_irqs, cpu);
 		pr_debug("Moved IRQ%d (CPU%d -> CPU%d)\n",
 			 irq_desc_get_irq(desc), prev_cpu, cpu);
+		bi->last_moved = jiffies;
 	}
 	return ret;
 }
@@ -179,7 +306,7 @@ static bool find_min_bd(const cpumask_t *mask, unsigned int max_intrs,
 
 	for_each_cpu(cpu, mask) {
 		bd = per_cpu_ptr(&balance_data, cpu);
-		intrs = scale_intrs(bd->intrs, bd->cpu);
+		intrs = scale_intrs(bd->ema_intrs ?: bd->intrs, bd->cpu);
 
 		/* Terminate when the formerly-max CPU isn't the max anymore */
 		if (intrs > max_intrs)
@@ -193,7 +320,7 @@ static bool find_min_bd(const cpumask_t *mask, unsigned int max_intrs,
 	}
 
 	/* Don't balance if IRQs are already balanced evenly enough */
-	return max_intrs - min_intrs < IRQ_SCALED_THRESH;
+	return max_intrs - min_intrs < sb_thresh;
 }
 
 static void balance_irqs(void)
@@ -223,8 +350,21 @@ static void balance_irqs(void)
 	for_each_cpu(cpu, &cpus)
 		per_cpu(cpu_cap, cpu) = cpu_rq(cpu)->cpu_capacity;
 
+	/* Reset window sums */
+	for_each_cpu(cpu, &cpus) {
+		bd = per_cpu_ptr(&balance_data, cpu);
+		bd->intrs = 0;
+		INIT_LIST_HEAD(&bd->movable_irqs);
+	}
+
 	list_for_each_entry_rcu(bi, &bal_irq_list, node) {
+		unsigned long now = jiffies;
+
 		if (!update_irq_data(bi, &cpu))
+			continue;
+		if (sb_per_irq_min && bi->delta_nr < sb_per_irq_min)
+			continue;
+		if (time_before(now, bi->last_moved + msecs_to_jiffies(sb_cooldown_ms)))
 			continue;
 
 		/* Add the number of new interrupts to this CPU's count */
@@ -233,6 +373,9 @@ static void balance_irqs(void)
 
 		/* Consider this IRQ for balancing if it's movable */
 		if (!__irq_can_set_affinity(bi->desc))
+			continue;
+		/* Respect blacklist/whitelist */
+		if (irq_is_blacklisted(bi->desc))
 			continue;
 
 		/* Ignore for this balancing run if something else moved it */
@@ -244,12 +387,16 @@ static void balance_irqs(void)
 		list_add_tail(&bi->move_node, &bd->movable_irqs);
 	}
 
+	/* Update EMA per CPU based on this window */
+	for_each_cpu(cpu, &cpus)
+		update_ema_for_cpu(cpu);
+
 	/* Find the most interrupt-heavy CPU with movable IRQs */
 	while (1) {
 		max_intrs = 0;
 		for_each_cpu(cpu, &cpus) {
 			bd = per_cpu_ptr(&balance_data, cpu);
-			intrs = scale_intrs(bd->intrs, bd->cpu);
+			intrs = scale_intrs(bd->ema_intrs ?: bd->intrs, bd->cpu);
 			if (intrs > max_intrs) {
 				max_intrs = intrs;
 				max_bd = bd;
@@ -286,7 +433,7 @@ try_next_heaviest:
 	/* Push IRQs away from the heaviest CPU to the least-heavy CPUs */
 	list_for_each_entry(bi, &max_bd->movable_irqs, move_node) {
 		/* Skip this IRQ if it would just overload the target CPU */
-		intrs = scale_intrs(min_bd->intrs + bi->delta_nr, min_bd->cpu);
+		intrs = scale_intrs((min_bd->ema_intrs ?: min_bd->intrs) + bi->delta_nr, min_bd->cpu);
 		if (intrs >= max_intrs)
 			continue;
 
@@ -300,7 +447,10 @@ try_next_heaviest:
 		/* Update the counts and recalculate the max scaled count */
 		min_bd->intrs += bi->delta_nr;
 		max_bd->intrs -= bi->delta_nr;
-		max_intrs = scale_intrs(max_bd->intrs, max_bd->cpu);
+		/* Update EMA incrementally for more accurate projection */
+		update_ema_for_cpu(min_bd->cpu);
+		update_ema_for_cpu(max_bd->cpu);
+		max_intrs = scale_intrs(max_bd->ema_intrs ?: max_bd->intrs, max_bd->cpu);
 
 		/* Recheck for the least-heavy CPU since it may have changed */
 		if (find_min_bd(&cpus, max_intrs, &min_bd))
@@ -316,17 +466,12 @@ try_next_heaviest:
 unlock:
 	rcu_read_unlock();
 
-	/* Reset each balance domain for the next run */
-	for_each_possible_cpu(cpu) {
-		bd = per_cpu_ptr(&balance_data, cpu);
-		INIT_LIST_HEAD(&bd->movable_irqs);
-		bd->intrs = 0;
-	}
+	/* nothing: we zeroed per-window sums before processing */
 }
 
 static int __noreturn sbalance_thread(void *data)
 {
-	long poll_jiffies = msecs_to_jiffies(POLL_MS);
+	long poll_jiffies;
 	struct bal_domain *bd;
 	int cpu;
 
@@ -343,14 +488,40 @@ static int __noreturn sbalance_thread(void *data)
 
 	set_freezable();
 	while (1) {
+		u32 ms = READ_ONCE(sb_poll_ms);
+
+		if (!READ_ONCE(sbalance_enabled))
+			ms = 5000; /* back off when disabled */
+
+		poll_jiffies = msecs_to_jiffies(ms);
 		freezable_schedule_timeout_interruptible(poll_jiffies);
-		balance_irqs();
+		if (READ_ONCE(sbalance_enabled))
+			balance_irqs();
 	}
 }
 
 static int __init sbalance_init(void)
 {
 	BUG_ON(IS_ERR(kthread_run(sbalance_thread, NULL, "sbalanced")));
+
+	/* Create sysfs: /sys/kernel/sbalance/ */
+	sb_kobj = kobject_create_and_add("sbalance", kernel_kobj);
+	if (!sb_kobj) {
+		pr_warn("failed to create sysfs kobject\n");
+		return 0;
+	}
+
+	/* Register attributes */
+	sysfs_create_file(sb_kobj, &sbalance_enabled_attr.attr);
+	sysfs_create_file(sb_kobj, &sb_poll_ms_attr.attr);
+	sysfs_create_file(sb_kobj, &sb_thresh_attr.attr);
+	sysfs_create_file(sb_kobj, &sb_cooldown_ms_attr.attr);
+	sysfs_create_file(sb_kobj, &sb_per_irq_min_attr.attr);
+	sysfs_create_file(sb_kobj, &sb_allow_cross_cluster_attr.attr);
+	sysfs_create_file(sb_kobj, &sb_blacklist_attr.attr);
+	sysfs_create_file(sb_kobj, &sb_whitelist_attr.attr);
+	sysfs_create_file(sb_kobj, &exclude_cpus_attr.attr);
+
 	return 0;
 }
 late_initcall(sbalance_init);
