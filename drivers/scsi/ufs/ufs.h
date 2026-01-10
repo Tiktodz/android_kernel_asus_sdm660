@@ -289,6 +289,16 @@ enum {
 	UFSHCD_AMP		= 3,
 };
 
+/* Possible values for dExtendedUFSFeaturesSupport */
+enum {
+	UFS_DEV_HIGH_TEMP_NOTIF		= BIT(4),
+	UFS_DEV_LOW_TEMP_NOTIF		= BIT(5),
+	UFS_DEV_EXT_TEMP_NOTIF		= BIT(6),
+	UFS_DEV_HPB_SUPPORT		= BIT(7),
+	UFS_DEV_WRITE_BOOSTER_SUP	= BIT(8),
+};
+#define UFS_DEV_HPB_SUPPORT_VERSION		0x310
+
 #define POWER_DESC_MAX_SIZE			0x62
 #define POWER_DESC_MAX_ACTV_ICC_LVLS		16
 
