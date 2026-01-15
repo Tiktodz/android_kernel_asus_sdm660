@@ -136,7 +136,6 @@
 	status = "okay";
 };
 
-
 &i2c_7 {
 	/* for P/L Sensor */
 	status = "okay";
@@ -144,20 +143,23 @@
 		compatible = "stk,stk3x1x";
 		reg = <0x48>;
 		interrupt-parent = <&tlmm>;
-		interrupts = <45 0x2>;
+		interrupts = <45 IRQ_TYPE_EDGE_FALLING>;
 		vdd-supply = <&pm660l_l3>;
 		vio-supply = <&pm660_l14>;
 		stk,irq-gpio = <&tlmm 45 0x02>;
 		pinctrl-names = "psensor_active", "psensor_suspend";
 		pinctrl-0 = <&psensor_int_active>;
 		pinctrl-1 = <&psensor_int_suspend>;
-		stk,state-reg = <0x0>;
-		stk,psctrl-reg = <0x31>;
-		stk,alsctrl-reg = <0x39>;
-		stk,ledctrl-reg = <0xFF>;
-		stk,wait-reg = <0x0A>;
-		stk,ps-thdh = <120>;
-		stk,ps-thdl = <90>;
+		stk,state-reg = <0x00>;
+		stk,psctrl-reg = <0x71>;
+		stk,alsctrl-reg = <0x3A>;
+		stk,ledctrl-reg = <0x7F>;
+		stk,wait-reg = <0x1F>;
+		stk,ps-thdh = <150>;
+		stk,ps-thdl = <100>;
 		stk,transmittance = <1100>;
+		stk,use-fir;
+		stk,ps-gain = <4>;
+		stk,als-gain = <64>;
 	};
 };

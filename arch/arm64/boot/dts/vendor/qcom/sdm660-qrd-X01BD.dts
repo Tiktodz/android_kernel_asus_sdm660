@@ -178,7 +178,7 @@
 		compatible = "stk,stk3x3x";
 		reg = <0x47>;
 		interrupt-parent = <&tlmm>;
-		interrupts = <45 0x2>;
+		interrupts = <45 IRQ_TYPE_EDGE_FALLING>;
 		vdd-supply = <&pm660l_l3>;
 		vio-supply = <&pm660_l14>;
 		stk,irq-gpio = <&tlmm 45 0x02>;

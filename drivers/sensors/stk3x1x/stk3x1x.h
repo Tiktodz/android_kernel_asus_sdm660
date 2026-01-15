@@ -2,7 +2,7 @@
  *
  * $Id: stk3x1x.h
  *
- * Copyright (C) 2012~2015 Lex Hsieh     <lex_hsieh@sensortek.com.tw> 
+ * Copyright (C) 2012~2015 Lex Hsieh <lex_hsieh@sensortek.com.tw> 
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive for
@@ -11,6 +11,8 @@
  */
 #ifndef __STK3X1X_H__
 #define __STK3X1X_H__
+
+#include <linux/types.h>
 
 /* platform data */
 struct stk3x1x_platform_data
@@ -27,5 +29,4 @@ struct stk3x1x_platform_data
 	uint32_t int_flags;
 };
 	
-
 #endif // __STK3X1X_H__

@@ -4820,14 +4820,18 @@ static int stk3x1x_probe(struct i2c_client *client,
 #else
 	sensors_light_cdev.min_delay = 0;
 #endif
-	ps_data->als_cdev.sensors_enable = stk_als_enable_set;
-	err = sensors_classdev_register(&ps_data->als_input_dev->dev, &ps_data->als_cdev);
+    ps_data->als_cdev.sensors_enable = stk_als_enable_set;
+    /* provide poll-delay handler for ALS */
+    ps_data->als_cdev.sensors_poll_delay = stk_als_poll_delay_set;
+    err = sensors_classdev_register(&ps_data->als_input_dev->dev, &ps_data->als_cdev);
 	if (err)
 		goto err_stk3x1x_setup_irq;
 
-	ps_data->ps_cdev = sensors_proximity_cdev;
-	ps_data->ps_cdev.sensors_enable = stk_ps_enable_set;
-	err = sensors_classdev_register(&ps_data->ps_input_dev->dev, &ps_data->ps_cdev);
+    ps_data->ps_cdev = sensors_proximity_cdev;
+    ps_data->ps_cdev.sensors_enable = stk_ps_enable_set;
+    /* provide poll-delay handler so sysfs 'delay' writes work */
+    ps_data->ps_cdev.sensors_poll_delay = stk_ps_poll_delay_set;
+    err = sensors_classdev_register(&ps_data->ps_input_dev->dev, &ps_data->ps_cdev);
 	if (err)
 		goto err_class_sysfs;
 #endif
