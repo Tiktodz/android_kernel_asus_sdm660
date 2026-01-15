@@ -153,21 +153,11 @@
 	/delete-node/sound-tavil;
 };
 
-&i2c_2 { /* BLSP2 */
-	status = "okay";
+/*add for SAR SENSOR*/
 
-	semtech@28 { /* sar sensor */
-		compatible = "Semtech,sx9310";
-		reg = <0x28>;
-		vdd-supply  =<&pm660l_l3>;
-		vdd1-supply =<&pm660_l13>;  // for svdd
-		interrupt-parent = <&tlmm>;
-		Semtech,gpio-irq= <&tlmm 77 0x2008>; // gpio 77
-		interrupts = <77 0x2>;
-
-		pinctrl-names = "sarsensor_active", "sarsensor_suspend";
-		pinctrl-0 = <&sarsensor_int_active>;
-		pinctrl-1 = <&sarsensor_int_suspend>;
+&i2c_2 {
+	semtech@28 {
+		status = "disabled";
 	};
 };
 
