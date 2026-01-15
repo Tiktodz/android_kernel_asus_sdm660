@@ -11,8 +11,8 @@
  */
 
 &dai_mi2s2 {
-	qcom,msm-mi2s-rx-lines = <1>;
-	qcom,msm-mi2s-tx-lines = <2>;
+	qcom,msm-mi2s-rx-lines = <1>; /* Line 0 RX */
+	qcom,msm-mi2s-tx-lines = <2>; /* Line 1 TX */
 };
 
 &int_codec {
@@ -50,4 +50,10 @@
 		"ADC2_IN", "ADC2_OUT",
 		"ADC3_IN", "ADC3_OUT";
 
+};
+
+/* FIX for afe_set_source_clk fail -22 (Define lines for Quinary MI2S TFA9874) */
+&dai_mi2s4 {
+	qcom,msm-mi2s-rx-lines = <1>;
+	qcom,msm-mi2s-tx-lines = <2>;
 };
