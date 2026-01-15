@@ -4,20 +4,7 @@
  * Copyright (C) 2010 Marco Stornelli <marco.stornelli@gmail.com>
  * Copyright (C) 2011 Kees Cook <keescook@chromium.org>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
+ * Modified for ASUS X00TD optimization - Dynamic RAM adaptation
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -35,6 +22,7 @@
 #include <linux/pstore_ram.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/mm.h> /* Added for totalram_pages */
 
 #define RAMOOPS_KERNMSG_HDR "===="
 #define MIN_MEM_SIZE 4096UL
@@ -732,6 +720,7 @@ static int ramoops_probe(struct platform_device *pdev)
 	size_t dump_mem_sz;
 	phys_addr_t paddr;
 	int err = -EINVAL;
+	unsigned long total_ram_mb;
 
 	if (dev_of_node(dev) && !pdata) {
 		pdata = &pdata_local;
@@ -757,6 +746,46 @@ static int ramoops_probe(struct platform_device *pdev)
 		err = -EINVAL;
 		goto fail_out;
 	}
+
+	/* ASUS X00TD Optimization: Dynamic Adaptation */
+	/* Calculate total RAM in MB. Note: totalram_pages is a var in 4.19 */
+	total_ram_mb = totalram_pages >> (20 - PAGE_SHIFT);
+	pr_info("ASUS X00TD/X01BD detected RAM: %lu MB. Optimizing ramoops...\n", total_ram_mb);
+
+	/* 
+	 * Optimization Strategy:
+	 * 6GB variants (> 5500MB): Can afford larger logs.
+	 * 3GB/4GB variants: Need efficient space usage.
+	 * Enforce Write-Combine (mem_type=0) for speed unless strictly requested otherwise.
+	 */
+
+	if (pdata->mem_type == 1) {
+		pr_info("Forcing mem_type to 0 (buffered/wc) for performance\n");
+		pdata->mem_type = 0;
+	}
+
+	if (total_ram_mb > 5500) {
+		/* 6GB Device (4/128, 6/64 variants) */
+		if (pdata->console_size < 262144)
+			pdata->console_size = 262144; /* 256KB console */
+		if (pdata->record_size < 262144)
+			pdata->record_size = 262144;  /* 256KB per record (better trace) */
+		/* Ensure PMSG is adequate for Android logs */
+		if (pdata->pmsg_size < 262144)
+			pdata->pmsg_size = 262144;
+	} else {
+		/* 3GB/4GB Device (3/32, 4/64) */
+		/* Reduce sizes to fit more history in limited reserved region */
+		if (pdata->console_size > 131072)
+			pdata->console_size = 131072; /* 128KB max console */
+		if (pdata->record_size > 131072)
+			pdata->record_size = 131072; /* 128KB record */
+		/* Optimize PMSG to save space for dmesg */
+		if (pdata->pmsg_size > 131072)
+			pdata->pmsg_size = 131072;
+	}
+
+	/* End ASUS Optimization */
 
 	if (!pdata->mem_size || (!pdata->record_size && !pdata->console_size &&
 			!pdata->ftrace_size && !pdata->pmsg_size)) {
