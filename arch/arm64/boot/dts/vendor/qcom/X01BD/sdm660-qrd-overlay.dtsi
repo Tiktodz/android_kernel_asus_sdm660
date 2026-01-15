@@ -535,6 +535,24 @@
 	};
 };
 
+/* FINAL FIX for SDHC2: Fix interrupts, ignore resets */
+&sdhc_2 {
+	/delete-property/ interrupt-map;
+	/delete-property/ interrupt-map-mask;
+	/delete-property/ #interrupt-cells;
+	/delete-property/ #address-cells;
+	/delete-property/ interrupt-parent;
+	/delete-property/ interrupts;
+	/delete-property/ interrupt-names;
+
+	interrupt-parent = <&intc>;
+	interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "hc_irq", "pwr_irq";
+
+	status = "okay";
+};
+
 &pm660_vadc {
 	xo_therm {
 		reg = <ADC_XO_THERM_PU2>;
