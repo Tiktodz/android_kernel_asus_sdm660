@@ -3,6 +3,7 @@
 #include "msm-pm660a-overlay.dtsi"
 #include "sdm660-pinctrl-overlay.dtsi"
 #include "sdm660-camera-sensor-qrd-overlay.dtsi"
+#include <dt-bindings/iio/qcom,spmi-vadc.h>
 
 &sdhc_1 {
 	qcom,vdd-always-on;
@@ -527,5 +528,35 @@
 		himax,irq-gpio = <&tlmm 67 0x00>;
 		himax,rst-gpio = <&tlmm 66 0x00>;
 		report_type = <1>;
+	};
+};
+
+&pm660_vadc {
+	xo_therm {
+		reg = <ADC_XO_THERM_PU2>;
+		qcom,lut-index = <4>;
+		status = "okay";
+	};
+
+	msm_therm {
+		reg = <ADC_AMUX_THM1_PU2>;
+		qcom,lut-index = <4>;
+		status = "okay";
+	};
+};
+
+&soc {
+	thermal-zones {
+		xo-therm-adc {
+			status = "okay";
+		};
+		msm-therm-adc {
+			status = "okay";
+		};
+
+		quiet-therm-adc { status = "disabled"; };
+		quiet-therm-step { status = "disabled"; };
+		mpm-lowf { status = "disabled"; };
+		camera-lowf { status = "disabled"; };
 	};
 };

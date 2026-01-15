@@ -23,12 +23,6 @@
 	};
 };
 
-&pm660_vadc {
-	pa_therm0 {
-		qcom,hw-settle-time = <10>; /* 10 ms */
-	};
-};
-
 &pm660_charger {
 	qcom,micro-usb;
 	qcom,fcc-max-ua = <1000000>;
