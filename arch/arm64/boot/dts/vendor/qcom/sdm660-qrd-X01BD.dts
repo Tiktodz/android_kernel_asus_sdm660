@@ -104,10 +104,10 @@
 	cdfinger_fp {
 		compatible = "cdfinger,fingerprint";
 		interrupt-parent = <&tlmm>;
-		interrupts = <72 0x0>;
-		cdfinger,reset_gpio = <&tlmm 20 0>;
-		cdfinger,irq_gpio = <&tlmm 72 0>;
-		cdfinger,gpio_vdd = <&pm660l_gpios 5 0>;
+		interrupts = <72 IRQ_TYPE_EDGE_RISING>;
+		cdfinger,reset_gpio = <&tlmm 20 GPIO_ACTIVE_LOW>;
+		cdfinger,irq_gpio = <&tlmm 72 GPIO_ACTIVE_HIGH>;
+		cdfinger,gpio_vdd = <&pm660l_gpios 5 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "cdfinger_active",
 				"cdfinger_sleep";
@@ -118,11 +118,12 @@
 	focaltech_fingerprint {
 		compatible = "focaltech,fingerprint";
 		interrupt-parent = <&tlmm>;
-		interrupts = <72 0x0>;
-		fp,reset_gpio   = <&tlmm 20 0>;
-		fp,irq_gpio        = <&tlmm 72 0>;
-		fp,vdd_gpio        = <&pm660l_gpios 5 0>;
-
+		interrupts = <72 IRQ_TYPE_EDGE_RISING>;
+		fp,reset_gpio   = <&tlmm 20 GPIO_ACTIVE_LOW>;
+		fp,irq_gpio        = <&tlmm 72 GPIO_ACTIVE_HIGH>;
+		fp,vdd_gpio        = <&pm660l_gpios 5 GPIO_ACTIVE_HIGH>;
+        spi-max-frequency = <10000000>;
+        
 		pinctrl-names = "focalfp_active",
 				"focalfp_sleep";
 		pinctrl-0 = <&focalfp_reset_active &focalfp_irq_active>;

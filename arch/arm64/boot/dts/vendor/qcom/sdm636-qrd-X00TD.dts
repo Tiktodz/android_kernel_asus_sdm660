@@ -91,13 +91,11 @@
 	cdfinger_fp {
 		compatible = "cdfinger,fingerprint";
 		interrupt-parent = <&tlmm>;
-		interrupts = <72 0x0>;
-		cdfinger,reset_gpio = <&tlmm 20 0>;
-		cdfinger,irq_gpio = <&tlmm 72 0>;
-		cdfinger,gpio_vdd = <&pm660l_gpios 5 0>;
-
-		pinctrl-names = "cdfinger_active",
-				"cdfinger_sleep";
+		interrupts = <72 IRQ_TYPE_EDGE_RISING>;
+		cdfinger,reset_gpio = <&tlmm 20 GPIO_ACTIVE_LOW>;
+		cdfinger,irq_gpio = <&tlmm 72 GPIO_ACTIVE_HIGH>;
+		cdfinger,gpio_vdd = <&pm660l_gpios 5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "cdfinger_active", "cdfinger_sleep";
 		pinctrl-0 = <&cdfinger_reset_active &cdfinger_irq_active>;
 		pinctrl-1 = <&cdfinger_reset_sleep &cdfinger_irq_sleep>;
 	};
@@ -105,10 +103,14 @@
 	goodix_fingerprint {
 		compatible = "goodix,fingerprint";
 		interrupt-parent = <&tlmm>;
-		interrupts = <72 0x0>;
-		goodix,reset_gpio = <&tlmm 20 0>;
-		goodix,gpio_vdd	= <&pm660l_gpios 5 0>;
-		goodix,irq_gpio	= <&tlmm 72 0>;
+		interrupts = <72 IRQ_TYPE_EDGE_RISING>;
+		goodix,reset_gpio = <&tlmm 20 GPIO_ACTIVE_LOW>;
+		goodix,gpio_vdd = <&pm660l_gpios 5 GPIO_ACTIVE_HIGH>;
+		goodix,irq_gpio = <&tlmm 72 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&goodix_reset_active &goodix_irq_active>;
+		pinctrl-1 = <&goodix_reset_sleep &goodix_irq_sleep>;
+		status = "okay";
 	};
 };
 

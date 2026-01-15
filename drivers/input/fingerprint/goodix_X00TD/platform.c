@@ -1,137 +1,107 @@
 /*
- * platform indepent driver interface
- *
- * Coypritht (c) 2017 Goodix
+ * Optimized platform interface for Goodix fingerprint
  */
 #include <linux/delay.h>
-#include <linux/workqueue.h>
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
-#include <linux/regulator/consumer.h>
-#include <linux/timer.h>
-#include <linux/err.h>
+#include <linux/platform_device.h>
 
 #include "gf_spi.h"
 
-#if defined(USE_SPI_BUS)
-#include <linux/spi/spi.h>
-#include <linux/spi/spidev.h>
-#elif defined(USE_PLATFORM_BUS)
-#include <linux/platform_device.h>
-#endif
-
-int gf_parse_dts(struct gf_dev* gf_dev)
+int gf_parse_dts(struct gf_dev *gf_dev)
 {
-	int rc = 0;
+    struct device *dev = &gf_dev->spi->dev;
+    int rc;
 
-	/*get vdd resource*/
-    gf_dev->vdd_gpio = of_get_named_gpio(gf_dev->spi->dev.of_node,"goodix,gpio_vdd",0);
-    if(!gpio_is_valid(gf_dev->vdd_gpio)) {
-        pr_info("VDD GPIO is invalid.\n");
-        return -1;
-    }
-    rc = gpio_request(gf_dev->vdd_gpio, "goodix_vdd");
-    if(rc) {
-        dev_err(&gf_dev->spi->dev, "Failed to request PWR GPIO. rc = %d\n", rc);
-        return -1;
+    /* VDD GPIO */
+    gf_dev->vdd_gpio = of_get_named_gpio(dev->of_node, "goodix,gpio_vdd", 0);
+    if (!gpio_is_valid(gf_dev->vdd_gpio)) {
+        dev_err(dev, "Invalid VDD GPIO\n");
+        return -EINVAL;
     }
 
-	/*get reset resource*/
-	gf_dev->reset_gpio = of_get_named_gpio(gf_dev->spi->dev.of_node,"goodix,reset_gpio",0);
-	if(!gpio_is_valid(gf_dev->reset_gpio)) {
-		pr_info("RESET GPIO is invalid.\n");
-		return -1;
-	}
-	rc = gpio_request(gf_dev->reset_gpio, "goodix_reset");
-	if(rc) {
-		dev_err(&gf_dev->spi->dev, "Failed to request RESET GPIO. rc = %d\n", rc);
-		return -1;
-	}
-	gpio_direction_output(gf_dev->reset_gpio, 1);
+    rc = devm_gpio_request_one(dev, gf_dev->vdd_gpio,
+                               GPIOF_OUT_INIT_LOW, "goodix_vdd");
+    if (rc) {
+        dev_err(dev, "Failed to request VDD GPIO: %d\n", rc);
+        return rc;
+    }
 
-	/*get irq resourece*/
-	gf_dev->irq_gpio = of_get_named_gpio(gf_dev->spi->dev.of_node,"goodix,irq_gpio",0);
-	pr_info("gf::irq_gpio:%d\n", gf_dev->irq_gpio);
-	if(!gpio_is_valid(gf_dev->irq_gpio)) {
-		pr_info("IRQ GPIO is invalid.\n");
-		return -1;
-	}
-	rc = gpio_request(gf_dev->irq_gpio, "goodix_irq");
-	if(rc) {
-		dev_err(&gf_dev->spi->dev, "Failed to request IRQ GPIO. rc = %d\n", rc);
-		return -1;
-	}
-	gpio_direction_input(gf_dev->irq_gpio);
+    /* Reset GPIO */
+    gf_dev->reset_gpio = of_get_named_gpio(dev->of_node, "goodix,reset_gpio", 0);
+    if (!gpio_is_valid(gf_dev->reset_gpio)) {
+        dev_err(dev, "Invalid reset GPIO\n");
+        return -EINVAL;
+    }
 
-    gpio_direction_output(gf_dev->vdd_gpio, 1);
+    rc = devm_gpio_request_one(dev, gf_dev->reset_gpio,
+                               GPIOF_OUT_INIT_HIGH, "goodix_reset");
+    if (rc) {
+        dev_err(dev, "Failed to request reset GPIO: %d\n", rc);
+        return rc;
+    }
 
-	msleep(10);
+    /* IRQ GPIO */
+    gf_dev->irq_gpio = of_get_named_gpio(dev->of_node, "goodix,irq_gpio", 0);
+    if (!gpio_is_valid(gf_dev->irq_gpio)) {
+        dev_err(dev, "Invalid IRQ GPIO\n");
+        return -EINVAL;
+    }
 
-	return 0;
+    rc = devm_gpio_request_one(dev, gf_dev->irq_gpio,
+                               GPIOF_IN, "goodix_irq");
+    if (rc) {
+        dev_err(dev, "Failed to request IRQ GPIO: %d\n", rc);
+        return rc;
+    }
+
+    return 0;
 }
 
-void gf_cleanup(struct gf_dev	* gf_dev)
+void gf_cleanup(struct gf_dev *gf_dev)
 {
-	pr_info("[info] %s\n",__func__);
-	if (gpio_is_valid(gf_dev->irq_gpio))
-	{
-		gpio_free(gf_dev->irq_gpio);
-		pr_info("remove irq_gpio success\n");
-	}
-	if (gpio_is_valid(gf_dev->reset_gpio))
-	{
-		gpio_free(gf_dev->reset_gpio);
-		pr_info("remove reset_gpio success\n");
-	}
-	if (gpio_is_valid(gf_dev->vdd_gpio))
-    {
-        gpio_free(gf_dev->vdd_gpio);
-        pr_info("remove vdd_gpio success\n");
-    }
+    /* GPIOs freed automatically via devm_ */
+    pr_info("Cleanup complete\n");
 }
 
-int gf_power_on(struct gf_dev* gf_dev)
+int gf_power_on(struct gf_dev *gf_dev)
 {
-    int rc = 0;
     if (gpio_is_valid(gf_dev->vdd_gpio)) {
         gpio_set_value(gf_dev->vdd_gpio, 1);
+        usleep_range(POWER_ON_DELAY_US, POWER_ON_DELAY_US + 1000);
     }
-    msleep(10);
-    pr_info("---- power on ok ----\n");
-
-    return rc;
+    pr_debug("Power on\n");
+    return 0;
 }
 
-int gf_power_off(struct gf_dev* gf_dev)
+int gf_power_off(struct gf_dev *gf_dev)
 {
-    int rc = 0;			
     if (gpio_is_valid(gf_dev->vdd_gpio)) {
-        gpio_set_value(gf_dev->vdd_gpio, 1);
+        gpio_set_value(gf_dev->vdd_gpio, 0);  /* ИСПРАВЛЕНО: было 1 */
     }
-    pr_info("---- power off ----\n");
-    return rc;
+    pr_debug("Power off\n");
+    return 0;
 }
 
 int gf_hw_reset(struct gf_dev *gf_dev, unsigned int delay_ms)
 {
-	if(gf_dev == NULL) {
-		pr_info("Input buff is NULL.\n");
-		return -1;
-	}
-	gpio_direction_output(gf_dev->reset_gpio, 1);
-	gpio_set_value(gf_dev->reset_gpio, 0);
-	mdelay(3);
-	gpio_set_value(gf_dev->reset_gpio, 1);
-	mdelay(delay_ms);
-	return 0;
+    if (!gf_dev || !gpio_is_valid(gf_dev->reset_gpio))
+        return -EINVAL;
+
+    gpio_set_value(gf_dev->reset_gpio, 0);
+    usleep_range(RESET_DELAY_US, RESET_DELAY_US + 500);
+    gpio_set_value(gf_dev->reset_gpio, 1);
+    
+    if (delay_ms)
+        msleep(delay_ms);
+    
+    return 0;
 }
 
 int gf_irq_num(struct gf_dev *gf_dev)
 {
-	if(gf_dev == NULL) {
-		pr_info("Input buff is NULL.\n");
-		return -1;
-	} else {
-		return gpio_to_irq(gf_dev->irq_gpio);
-	}
+    if (!gf_dev || !gpio_is_valid(gf_dev->irq_gpio))
+        return -EINVAL;
+    
+    return gpio_to_irq(gf_dev->irq_gpio);
 }

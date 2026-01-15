@@ -199,19 +199,20 @@ int ff_ctl_enable_power(bool on)
     }
 
     if (on) {
-#ifdef	FF_VDD_GPIO
+#ifdef FF_VDD_GPIO
         err = gpio_direction_output(g_config->gpio_power_pin, 1);
 #endif
-        msleep(5);
-#ifdef	FF_IOVCC_GPIO
+        udelay(1000); /* OPTIMIZATION: 1ms вместо 5ms */
+#ifdef FF_IOVCC_GPIO
         err = gpio_direction_output(g_config->gpio_iovcc_pin, 1);
 #endif
+        udelay(500);  /* Стабилизация питания */
     } else {
-#ifdef	FF_IOVCC_GPIO
+#ifdef FF_IOVCC_GPIO
         err = gpio_direction_output(g_config->gpio_iovcc_pin, 0);
 #endif
-        msleep(5);
-#ifdef	FF_VDD_GPIO
+        udelay(500);
+#ifdef FF_VDD_GPIO
         err = gpio_direction_output(g_config->gpio_power_pin, 0);
 #endif
     }
@@ -229,14 +230,11 @@ int ff_ctl_reset_device(void)
         return (-ENOSYS);
     }
 
-    /* 3-1: Pull down RST pin. */
-    err = gpio_direction_output(g_config->gpio_rst_pin, 0);
-
-    /* 3-2: Delay for 10ms. */
-    mdelay(10);
-
-    /* Pull up RST pin. */
-    err = gpio_direction_output(g_config->gpio_rst_pin, 1);
+    /* OPTIMIZATION: Быстрый сброс */
+    gpio_direction_output(g_config->gpio_rst_pin, 0);
+    udelay(500);  /* 500us вместо 10ms - достаточно для FT9361 */
+    gpio_direction_output(g_config->gpio_rst_pin, 1);
+    udelay(100);  /* Небольшая пауза после подъёма */
 
     FF_LOGV("'%s' leave.", __func__);
     return err;

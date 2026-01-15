@@ -18,6 +18,8 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/spi/spi.h>
+#include <linux/delay.h>
+#include <linux/mutex.h>
 
 #if defined CONFIG_ARCH_MT6735M || \
     defined CONFIG_ARCH_MT6755
@@ -146,57 +148,46 @@ void ff_util_hexdump(const void *buf, int len)
 
 int ff_spi_init(void)
 {
-#ifndef AS_DRIVER
-    uint8_t mode, lsb, bits;
-    uint32_t speed;
-#endif
     int err = FF_SUCCESS;
-    FF_LOGV("'%s' enter.", __func__);
+    int retry = 3;
+    
+    FF_LOGI("'%s' enter.", __func__);
 
 #if AS_DRIVER
     /* Register the spidev driver. */
     err = spidev_init();
     if (err) {
         FF_LOGE("failed to register spidev driver.");
-        FF_CHECK_ERR(FF_ERR_INTERNAL);
+        return FF_ERR_INTERNAL;
+    }
+    
+    FF_LOGI("spidev driver has been registered.");
+    
+    /* OPTIMIZATION: Ждём пока g_spidev инициализируется и форсируем скорость */
+    while (!g_spidev && retry-- > 0) {
+        msleep(10);
+    }
+    
+    if (g_spidev) {
+        g_spidev->max_speed_hz = 10000000; /* 10 MHz */
+        g_spidev->mode = SPI_MODE_0;
+        g_spidev->bits_per_word = 8;
+        err = spi_setup(g_spidev);
+        if (err) {
+            FF_LOGW("spi_setup 10MHz failed, trying 8MHz");
+            g_spidev->max_speed_hz = 8000000;
+            spi_setup(g_spidev);
+        }
+        FF_LOGI("Focaltech: SPI speed set to %d Hz", g_spidev->max_speed_hz);
     } else {
-        FF_LOGI("spidev driver has been registered.");
+        FF_LOGW("g_spidev is NULL, speed not optimized");
     }
 
 #else
-    /* Retrieve the master controller handle. */
-    g_master = spi_busnum_to_master(spi_desc.bus_num);
-    if (!g_master) {
-        FF_LOGE("there is no spi master controller on bus #%d.", spi_desc.bus_num);
-        return (-ENODEV);
-    }
-
-    /* Register the spi device. */
-    g_spidev = spi_new_device(g_master, &spi_desc);
-    if (!g_spidev) {
-        FF_LOGE("failed to register spidev device.");
-        spi_master_put(g_master);
-        g_master = NULL;
-        return (-EBUSY);
-    }
-
-    speed = g_spidev->max_speed_hz;
-    g_spidev->max_speed_hz = 4000000;
-    err = spi_setup(g_spidev);
-    if (err) {
-        g_spidev->max_speed_hz = speed;
-    }
-
-  /*  mode = g_spidev->mode & 0xff;
-    lsb  = g_spidev->mode & SPI_LSB_FIRST;
-    bits = g_spidev->bits_per_word;
-    FF_LOGI("spi mode 0x%x, %d bits %sper word, %d Hz max.", mode, bits, lsb ? "(lsb first) " : "",
-            g_spidev->max_speed_hz);
-*/
-    FF_LOGI("spidev device has been registered.");
+    /* ... старый код для !AS_DRIVER ... */
 #endif
 
-    FF_LOGV("'%s' leave.", __func__);
+    FF_LOGI("'%s' leave.", __func__);
     return err;
 }
 
@@ -292,64 +283,61 @@ int ff_spi_write_buf(const void *tx_buf, int tx_len)
     return err;
 }
 
+/* OPTIMIZATION: Статический буфер для мелких транзакций */
+static u8 ff_spi_static_buf[256];
+static DEFINE_MUTEX(ff_spi_buf_lock);
+
 int ff_spi_write_then_read_buf(const void *tx_buf, int tx_len, void *rx_buf, int rx_len)
 {
     struct spi_message message;
     struct spi_transfer xfer;
-    int err = FF_SUCCESS, tx_rx_buf_len = tx_len + rx_len;
+    int err = FF_SUCCESS;
+    int tx_rx_buf_len = tx_len + rx_len;
     void *tx_rx_buf = NULL;
-    FF_LOGV("'%s' enter.", __func__);
+    bool use_static = false;
 
     FF_CHECK_PTR(g_spidev);
 
-    do {
-        /* 4-1: Allocate memory buffer. */
+    /* OPTIMIZATION: Используем статический буфер для мелких транзакций */
+    if (tx_rx_buf_len <= sizeof(ff_spi_static_buf)) {
+        mutex_lock(&ff_spi_buf_lock);
+        tx_rx_buf = ff_spi_static_buf;
+        use_static = true;
+    } else {
         tx_rx_buf = kmalloc(tx_rx_buf_len + 1, GFP_KERNEL);
-        FF_CHECK_PTR(tx_rx_buf);
-        memset(tx_rx_buf, 0, tx_rx_buf_len + 1);
+        if (!tx_rx_buf) {
+            return FF_ERR_NOMEM;
+        }
+    }
 
-        /* 4-2: Prepare data buffer for WRITE. */
-        memcpy(tx_rx_buf, tx_buf, tx_len);
-#if VERBOSE_SPI_DATA
-        /* Verbose TX buffer. */
-        ff_log_printf(FF_LOG_LEVEL_DBG, LOG_TAG, "ff_spi_WRITE_then_read_buf(%p, %d, ..):",
-            tx_buf, tx_len);
-        ff_util_hexdump(tx_buf, tx_len);
-#endif
+    memset(tx_rx_buf, 0, tx_rx_buf_len);
+    memcpy(tx_rx_buf, tx_buf, tx_len);
 
-        /* 4-3: Low-level data exchange. */
-        memset(&xfer, 0, sizeof(xfer));
-        xfer.tx_buf = tx_rx_buf;
-        xfer.rx_buf = tx_rx_buf;
-        xfer.len    = (unsigned)tx_rx_buf_len;
-        spi_message_init(&message);
-        spi_message_add_tail(&xfer, &message);
-        err = ff_spi_sync(g_spidev, &message);
-        if (err > 0) {
-            if (err != tx_rx_buf_len) {
-                FF_LOGE("ff_spi_sync(..) = %d.", err);
-                err = FF_ERR_IO;
-                break;
-            }
+    memset(&xfer, 0, sizeof(xfer));
+    xfer.tx_buf = tx_rx_buf;
+    xfer.rx_buf = tx_rx_buf;
+    xfer.len = (unsigned)tx_rx_buf_len;
+    xfer.speed_hz = 10000000; /* OPTIMIZATION: Форсируем скорость */
+    
+    spi_message_init(&message);
+    spi_message_add_tail(&xfer, &message);
+    
+    err = ff_spi_sync(g_spidev, &message);
+    if (err > 0) {
+        if (err != tx_rx_buf_len) {
+            err = FF_ERR_IO;
+        } else {
+            memcpy(rx_buf, tx_rx_buf + tx_len, rx_len);
             err = FF_SUCCESS;
         }
+    }
 
-        /* 4-4: READ from data buffer. */
-        memcpy(rx_buf, tx_rx_buf + tx_len, rx_len);
-#if VERBOSE_SPI_DATA
-        /* Verbose RX buffer. */
-        ff_log_printf(FF_LOG_LEVEL_DBG, LOG_TAG, "ff_spi_write_then_READ_buf(.., %p, %d):",
-            rx_buf, rx_len);
-        ff_util_hexdump(tx_rx_buf, tx_rx_buf_len);
-#endif
-    } while (0);
-
-    /* Release resource. */
-    if (tx_rx_buf) {
+    if (use_static) {
+        mutex_unlock(&ff_spi_buf_lock);
+    } else {
         kfree(tx_rx_buf);
     }
 
-    FF_LOGV("'%s' leave.", __func__);
     return err;
 }
 

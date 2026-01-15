@@ -753,14 +753,28 @@ static int spidev_probe(struct spi_device *spi)
 	}
 	mutex_unlock(&device_list_lock);
 
-	spidev->speed_hz = spi->max_speed_hz;
+    /* ============ OPTIMIZATION START ============ */
+    /* Принудительно ставим 10MHz, игнорируя DTS */
+    spi->max_speed_hz = 10000000;
+    spi->mode = SPI_MODE_0;
+    spi->bits_per_word = 8;
+    status = spi_setup(spi);
+    if (status < 0) {
+        dev_err(&spi->dev, "spi_setup failed, trying 8MHz\n");
+        spi->max_speed_hz = 8000000;
+        spi_setup(spi);
+    }
+    spidev->speed_hz = spi->max_speed_hz;
+    dev_info(&spi->dev, "Focaltech SPI optimized: %d Hz\n", spi->max_speed_hz);
+    /* ============ OPTIMIZATION END ============== */
 
-	if (status == 0)
-		spi_set_drvdata(spi, spidev);
-	else
-		kfree(spidev);
-        g_spidev = spi;
-	return status;
+    if (status == 0)
+        spi_set_drvdata(spi, spidev);
+    else
+        kfree(spidev);
+
+    g_spidev = spi;
+    return status;
 }
 
 static int spidev_remove(struct spi_device *spi)
