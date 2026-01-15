@@ -1311,51 +1311,9 @@ config TOUCHSCREEN_ROHM_BU21023
 	  To compile this driver as a module, choose M here: the
 	  module will be called bu21023_ts.
 
-config TOUCHSCREEN_ST
-	tristate "STMicroelectronics Touchscreen Driver"
-	depends on I2C
-	default n
-	help
-	  Say Y here if you have a STMicroelectronics Touchscreen.
-
-	  If unsure, say N.
-	  To compile this driver as a module, choose M here: the
-	  module will be called st.
-
-source "drivers/input/touchscreen/st/Kconfig"
-
-config TOUCHSCREEN_SYNAPTICS_DSX
-	bool "Synaptics DSX Touchscreen Driver"
-	depends on I2C
-	default y
-	help
-	  Say Y here if you have a Synaptics Touchscreen.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called synaptics_dsx.
-
-source "drivers/input/touchscreen/synaptics_dsx/Kconfig"
 source "drivers/input/touchscreen/synaptics_dsx_X00TD/Kconfig"
 
-config TOUCHSCREEN_SYNAPTICS_TCM
-	bool "Synaptics TCM Touchscreen Driver"
-	depends on I2C
-	default y
-	help
-	  Say Y here if you have a Synaptics Touchscreen.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called synaptics_tcm.
-
-source "drivers/input/touchscreen/synaptics_tcm/Kconfig"
-
 source "drivers/input/touchscreen/focaltech_touch/Kconfig"
-
-source "drivers/input/touchscreen/nt36xxx/Kconfig"
 
 source "drivers/input/touchscreen/NVT_Touch_X01BD/Kconfig"
 

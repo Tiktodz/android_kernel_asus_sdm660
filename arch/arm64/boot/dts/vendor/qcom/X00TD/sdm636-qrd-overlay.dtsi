@@ -23,16 +23,18 @@
 		/* Novatek device tree node */
 	novatek@62 {
 		compatible = "novatek,NVT-ts";
-		com,i2c-touch-active = "novatek, NVT-ts";
+		qcom,i2c-touch-active = "novatek, NVT-ts";
 		reg = <0x62>;
-		status = "ok";
+		status = "okay";
 		avdd-supply = <&pm660l_l3>;    //VDD
 		vdd-supply = <&pm660_l11>;    //VDDIO
 		lcm_lab-supply = <&lcdb_ldo_vreg>;
 		lcm_ibb-supply = <&lcdb_ncp_vreg>;
 		novatek,reset-gpio = <&tlmm 66 0x0>;
-		novatek,irq-gpio = <&tlmm 67 0x0>;
+		novatek,irq-gpio = <&tlmm 67 0x2008>;
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
+		pinctrl-0 = <&ts_active>;
+        pinctrl-1 = <&ts_reset_suspend &ts_int_suspend>;
 		novatek,config-array-size = <2>;
 
 			/* MP */
@@ -408,6 +410,7 @@
 		compatible = "synaptics,dsx-i2c";
 		reg = <0x70>;
 		interrupt-parent = <&tlmm>;
+		status = "okay";
 		//interrupts = <67 0x2008>;
 		vdd-supply = <&pm660_l11>;
 		avdd-supply = <&pm660l_l3>;
@@ -416,12 +419,16 @@
 		synaptics,pwr-reg-name = "avdd";
 		synaptics,bus-reg-name = "vdd";
 		synaptics,ub-i2c-addr = <0x2c>;
+		synaptics,reset-gpio = <&tlmm 66 0x00>;
 		synaptics,irq-gpio = <&tlmm 67 0x2008>; /* IRQF_ONESHOT | IRQF_TRIGGER_LOW */
 		synaptics,irq-on-state = <0>;
 		synaptics,power-delay-ms = <200>;
 		synaptics,reset-delay-ms = <200>;
 		synaptics,reset-on-state = <0>;
 		synaptics,reset-active-ms = <20>;
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
+        pinctrl-0 = <&ts_active>;
+        pinctrl-1 = <&ts_reset_suspend &ts_int_suspend>;
 
 	};
 };
