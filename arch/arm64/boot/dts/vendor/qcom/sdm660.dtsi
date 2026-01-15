@@ -533,7 +533,7 @@
 		interrupt-controller;
 		#interrupt-cells = <4>;
 		cell-index = <0>;
-		status = "ok";
+		status = "okay";
 	};
 
 		mem_dump {
@@ -2134,7 +2134,7 @@
 		qcom,proxy-timeout-ms = <100>;
 		qcom,firmware-name = "venus";
 		memory-region = <&venus_fw_mem>;
-		status = "ok";
+		status = "okay";
 	};
 
 	qcom,icnss@18800000 {
@@ -2218,7 +2218,7 @@
 		/* GPIO output to lpass */
 		qcom,smem-states = <&adsp_smp2p_out 0>;
 		qcom,smem-state-names = "qcom,force-stop";
-		status = "ok";
+		status = "okay";
 	};
 
 	qcom,turing@1a300000 {
@@ -2259,7 +2259,7 @@
 		/* Outputs to turing */
 		qcom,smem-states = <&cdsp_smp2p_out 0>;
 		qcom,smem-state-names = "qcom,force-stop";
-		status = "ok";
+		status = "okay";
 	};
 
 	pil_modem: qcom,mss@4080000 {
@@ -2325,7 +2325,7 @@
 		qcom,smem-states = <&modem_smp2p_out 0>;
 		qcom,smem-state-names = "qcom,force-stop";
 
-		status = "ok";
+		status = "okay";
 		qcom,mba-mem@0 {
 			compatible = "qcom,pil-mba-mem";
 			memory-region = <&pil_mba_mem>;
@@ -2754,11 +2754,11 @@
 #include "sdm660-thermal.dtsi"
 
 &gdsc_usb30 {
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_ufs {
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_bimc_smmu {
@@ -2767,54 +2767,54 @@
 		 <&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>;
 	proxy-supply = <&gdsc_bimc_smmu>;
 	qcom,proxy-consumer-enable;
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_hlos1_vote_lpass_adsp {
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_hlos1_vote_turing_adsp {
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_hlos2_vote_turing_adsp {
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_venus {
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_venus_core0 {
 	qcom,support-hw-trigger;
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_camss_top {
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_vfe0 {
 	parent-supply = <&gdsc_camss_top>;
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_vfe1 {
 	parent-supply = <&gdsc_camss_top>;
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_cpp {
 	parent-supply = <&gdsc_camss_top>;
 	qcom,support-hw-trigger;
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_mdss {
 	proxy-supply = <&gdsc_mdss>;
 	qcom,proxy-consumer-enable;
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_gpu_gx {
@@ -2822,11 +2822,11 @@
 	clocks = <&clock_gfx GFX3D_CLK_SRC>;
 	qcom,force-enable-root-clk;
 	parent-supply = <&gfx_vreg_corner>;
-	status = "ok";
+	status = "okay";
 };
 
 &gdsc_gpu_cx {
-	status = "ok";
+	status = "okay";
 };
 
 
@@ -2897,7 +2897,7 @@
 };
 
 &blsp2_uart1_hs {
-	status = "ok";
+	status = "okay";
 };
 
 &pm660_adc_tm {
