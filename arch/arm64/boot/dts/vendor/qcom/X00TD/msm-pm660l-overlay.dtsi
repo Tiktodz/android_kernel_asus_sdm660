@@ -10,12 +10,6 @@
  * GNU General Public License for more details.
  */
 
-&pm660l_gpios {
-	gpio@c400 {
-		status = "ok";
-	};
-};
-
 &pm660l_lpg {
 
     // Green

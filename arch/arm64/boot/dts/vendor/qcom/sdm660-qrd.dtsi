@@ -112,6 +112,14 @@
 };
 
 &pm660_gpios {
+        home_key_pins: home_key_state {
+                        pins = "gpio11";
+                        function = "gpio";
+                        bias-disable;
+                        power-source = <0>;
+                        drive-strength-microamp = <2000>;
+        };
+
 	/* GPIO 4 (NFC_CLK_REQ) */
 	nfc_clk {
 		nfc_clk_default: nfc_clk_default {

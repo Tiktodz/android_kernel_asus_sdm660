@@ -86,3 +86,24 @@
 		qcom,afe-power-off-delay-us = <6>;
 	};
 };
+
+&pm660l_gpios {
+	pm660l_gpio5_active: pm660l_gpio5_active_state {
+		pins = "gpio5";
+		function = "gpio";
+	};
+};
+
+&pm660_gpios {
+    adapter_id_pins: adapter_id_state {
+        pins = "gpio3";
+        function = "ana1";
+        bias-disable;
+        power-source = <0>;
+    };
+
+    some_device_pins: some_device_state {
+        pins = "gpio12";
+        function = "gpio";
+    };
+};

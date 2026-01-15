@@ -1,11 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-&pm660l_gpios {
-	gpio@c400 {
-		status = "ok";
-	};
-};
-
 &pm660l_wled {
 	qcom,fs-current-limit = <20000>;
 };
