@@ -1008,6 +1008,7 @@ static int qcom_vadc_scale_hw_calib_volt(
 static int qcom_vadc_scale_hw_calib_therm(
 				const struct vadc_prescale_ratio *prescale,
 				const struct adc_data *data,
+				unsigned int lut_index,
 				u16 adc_code, int *result_mdec)
 {
 	s64 voltage = 0, result = 0;
@@ -1025,6 +1026,15 @@ static int qcom_vadc_scale_hw_calib_therm(
 				 voltage, &result);
 	if (ret)
 		return ret;
+
+	/*
+	 * ASUS X00TD/X01BD Quirk:
+	 * If DTS specifies qcom,lut-index = <4>, apply a -20C offset.
+	 * This corrects the reading for the specific NTC/Divider used on this board
+	 * where the default curve reads ~50C at ambient ~30C.
+	 */
+	if (lut_index == 4)
+		result -= 20000;
 
 	*result_mdec = result;
 
@@ -1419,7 +1429,7 @@ int qcom_vadc_hw_scale(enum vadc_scale_fn_type scaletype,
 	case SCALE_HW_CALIB_THERM_100K_PULLUP:
 	case SCALE_HW_CALIB_XOTHERM:
 		return qcom_vadc_scale_hw_calib_therm(prescale, data,
-						adc_code, result);
+						lut_index, adc_code, result);
 	case SCALE_HW_CALIB_BATT_THERM_100K:
 		return qcom_vadc_scale_hw_calib_batt_therm_100(prescale,
 					data, lut_index, adc_code, result);
