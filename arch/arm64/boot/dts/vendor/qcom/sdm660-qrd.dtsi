@@ -111,6 +111,30 @@
 				0x00 0x18>;
 };
 
+&tlmm {
+	nfc_pins_custom_config {
+		/* "Сильное" состояние для пина питания VEN (GPIO29) */
+		nfc_ven_active: nfc_ven_active_state {
+			pins = "gpio29";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		/* 
+		 * Состояние для пинов FIRM (GPIO30) и ESE_PWR (GPIO31).
+		 * Мы используем оригинальные параметры из dtsi (2mA, pull-up),
+		 * чтобы гарантировать их правильную конфигурацию.
+		 */
+		nfc_firm_ese_active: nfc_firm_ese_active_state {
+			pins = "gpio30", "gpio31";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+};
+
 &pm660_gpios {
         home_key_pins: home_key_state {
                         pins = "gpio11";
@@ -122,7 +146,7 @@
 
 	/* GPIO 4 (NFC_CLK_REQ) */
 	nfc_clk {
-		nfc_clk_default: nfc_clk_default {
+		nfc_clk_default: nfc_clk_default_state {
 			pins = "gpio4";
 			function = "normal";
 			input-enable;
@@ -146,8 +170,7 @@
 		interrupts = <28 0>;
 		interrupt-names = "nfc_irq";
 		pinctrl-names = "nfc_active", "nfc_suspend";
-		pinctrl-0 = <&nfc_int_active &nfc_enable_active
-				&nfc_clk_default>;
+		pinctrl-0 = <&nfc_int_active &nfc_ven_active &nfc_firm_ese_active &nfc_clk_default>;
 		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend>;
 		clocks = <&clock_rpmcc RPM_SMD_LN_BB_CLK3_PIN>;
 		clock-names = "ref_clk";
