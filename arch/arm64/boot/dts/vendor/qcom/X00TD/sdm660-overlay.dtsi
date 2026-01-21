@@ -19,6 +19,10 @@
 			reg = <0x0 0x9ff00000 0x0 0x00100000>;
 			label = "pstore_reserve_mem";
 		};
+
+		cont_splash_mem: splash_region@9d400000 {
+			reg = <0x0 0x9d400000 0x0 0x02400000>;
+		};
 	};
 };
 
