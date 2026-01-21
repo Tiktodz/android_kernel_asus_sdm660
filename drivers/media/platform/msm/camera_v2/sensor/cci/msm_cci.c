@@ -1881,7 +1881,7 @@ static long msm_cci_subdev_ioctl(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_core_ops msm_cci_subdev_core_ops = {
 	.ioctl = &msm_cci_subdev_ioctl,
-	.interrupt_service_routine = msm_cci_irq_routine,
+	/* .interrupt_service_routine is deprecated and not needed in 4.19 */
 };
 
 static const struct v4l2_subdev_ops msm_cci_subdev_ops = {

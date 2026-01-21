@@ -379,17 +379,19 @@ static int msm_csid_config(struct csid_device *csid_dev,
 
 		desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
 		desc.args[0] = csid_params->is_secure;
-		desc.args[1] = csid_params->phy_sel;
+		desc.args[1] = CSIPHY_LANES_MASKS[csid_params->phy_sel];
 
 		CDBG("phy_sel : %d, secure : %d\n",
 			csid_params->phy_sel, csid_params->is_secure);
+
+		msm_camera_tz_clear_tzbsp_status();
+
 		if (scm_call2(SCM_SIP_FNID(SCM_SVC_CAMERASS,
 			SECURE_SYSCALL_ID), &desc)) {
 			pr_err("%s:%d scm call to hypervisor failed\n",
 				__func__, __LINE__);
 			return -EINVAL;
 		}
-		msm_camera_tz_clear_tzbsp_status();
 	}
 #endif
 
@@ -761,7 +763,8 @@ static int msm_csid_release(struct csid_device *csid_dev)
 
 		desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
 		desc.args[0] = 0;
-		desc.args[1] = csid_dev->current_csid_params.phy_sel;
+		desc.args[1] = CSIPHY_LANES_MASKS[
+				csid_dev->current_csid_params.phy_sel];
 
 		if (scm_call2(SCM_SIP_FNID(SCM_SVC_CAMERASS,
 			SECURE_SYSCALL_ID), &desc)) {
