@@ -1838,7 +1838,7 @@ static irqreturn_t msm_cci_irq(int irq_num, void *data)
 	return IRQ_HANDLED;
 }
 
-static int msm_cci_irq_routine(struct v4l2_subdev *sd, u32 status,
+static int __maybe_unused msm_cci_irq_routine(struct v4l2_subdev *sd, u32 status,
 	bool *handled)
 {
 	struct cci_device *cci_dev = v4l2_get_subdevdata(sd);
