@@ -17903,10 +17903,6 @@ static const struct snd_kcontrol_new mmul8_mixer_controls[] = {
 	MSM_BACKEND_DAI_SLIMBUS_7_TX,
 	MSM_FRONTEND_DAI_MULTIMEDIA8, 1, 0, msm_routing_get_audio_mixer,
 	msm_routing_put_audio_mixer),
-	SOC_DOUBLE_EXT("SLIM_8_TX", SND_SOC_NOPM,
-	MSM_BACKEND_DAI_SLIMBUS_8_TX,
-	MSM_FRONTEND_DAI_MULTIMEDIA8, 1, 0, msm_routing_get_audio_mixer,
-	msm_routing_put_audio_mixer),
 	SOC_DOUBLE_EXT("USB_AUDIO_TX", SND_SOC_NOPM,
 	MSM_BACKEND_DAI_USB_TX,
 	MSM_FRONTEND_DAI_MULTIMEDIA8, 1, 0, msm_routing_get_audio_mixer,
@@ -24222,7 +24218,7 @@ static const struct soc_enum wsa_rx_0_vi_fb_rch_mux_enum =
 	wsa_rx_0_vi_fb_tx_rch_mux_text, wsa_rx_0_vi_fb_tx_rch_value);
 
 static const struct soc_enum mi2s_rx_vi_fb_mux_enum =
-	SOC_VALUE_ENUM_DOUBLE(SND_SOC_NOPM, MSM_BACKEND_DAI_TERTIARY_MI2S_RX, 0, 0,
+	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_TERTIARY_MI2S_RX, 0, 0,
 	ARRAY_SIZE(mi2s_rx_vi_fb_tx_mux_text),
 	mi2s_rx_vi_fb_tx_mux_text, mi2s_rx_vi_fb_tx_value);
 
@@ -26442,7 +26438,6 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"MultiMedia1 Mixer", "SLIM_9_TX", "SLIMBUS_9_TX"},
 	{"MultiMedia8 Mixer", "SLIM_6_TX", "SLIMBUS_6_TX"},
 	{"MultiMedia8 Mixer", "SLIM_7_TX", "SLIMBUS_7_TX"},
-	{"MultiMedia8 Mixer", "SLIM_8_TX", "SLIMBUS_8_TX"},
 	{"MultiMedia8 Mixer", "SLIM_9_TX", "SLIMBUS_9_TX"},
 	{"MultiMedia4 Mixer", "SLIM_0_TX", "SLIMBUS_0_TX"},
 	{"MultiMedia4 Mixer", "SLIM_1_TX", "SLIMBUS_1_TX"},

@@ -16,6 +16,8 @@ config MSM_ADSP_LOADER
 	tristate "MSM_ADSP_LOADER"
 config MSM_AVTIMER
 	tristate "MSM_AVTIMER"
+config AVTIMER_LEGACY
+	tristate "AVTIMER_LEGACY"
 config MSM_CDC_PINCTRL
 	tristate "MSM_CDC_PINCTRL"
 config MSM_GLINK_SPI_XPRT
@@ -160,6 +162,8 @@ config WCD_DSP_GLINK
 	tristate "WCD_DSP_GLINK"
 config WSA_MACRO
 	tristate "WSA_MACRO"
+config SOUND_CONTROL
+	tristate "SOUND_CONTROL"
 
 config SND_SOC_TFA9874
 	tristate "NXP Semiconductors TFA9874 audio amplifier"

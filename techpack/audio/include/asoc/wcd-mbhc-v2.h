@@ -123,7 +123,7 @@ do {                                                    \
 
 #define WCD_MBHC_JACK_MASK (SND_JACK_HEADSET | SND_JACK_OC_HPHL | \
 			   SND_JACK_OC_HPHR | SND_JACK_LINEOUT | \
-			   SND_JACK_MECHANICAL | \
+			   SND_JACK_MECHANICAL | SND_JACK_MICROPHONE2 | \
 			   SND_JACK_UNSUPPORTED)
 
 #define WCD_MBHC_JACK_BUTTON_MASK (SND_JACK_BTN_0 | SND_JACK_BTN_1 | \
@@ -140,6 +140,7 @@ do {                                                    \
 #define FW_READ_ATTEMPTS 15
 #define FW_READ_TIMEOUT 4000000
 #define FAKE_REM_RETRY_ATTEMPTS 3
+#define MAX_IMPED 100000
 #define HPHL_CROSS_CONN_THRESHOLD 100
 #define HPHR_CROSS_CONN_THRESHOLD 100
 
