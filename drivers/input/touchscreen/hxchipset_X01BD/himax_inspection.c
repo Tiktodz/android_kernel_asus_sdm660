@@ -586,21 +586,22 @@ static int himax_check_notch(int index)
 }
 #endif
 
-
 static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 {
-	uint32_t i/*, j*/, ret = 0;
-	uint32_t RAW[datalen];
-
-	char *rslt_log;
-	char *start_log;
-
+	uint32_t i, ret = 0;
+	uint32_t *RAW = NULL;
+	char *rslt_log = NULL;
+	char *start_log = NULL;
 	int ret_val;
 
-
-	/*uint16_t* pInspectGridData = &gInspectGridData[0];*/
-	/*uint16_t* pInspectNoiseData = &gInspectNoiseData[0];*/
 	I("Now Check type = %d\n", checktype);
+
+	/* Allocate RAW buffer */
+    RAW = kmalloc(datalen * sizeof(uint32_t), GFP_KERNEL);
+    if (!RAW) {
+        E("%s: allocate RAW memory failed\n", __func__);
+        return HX_INSPECT_EOTHER;
+    }
 
 	if (himax_check_mode(checktype)) {
 		I("Need Change Mode ,target=%s\n", g_himax_inspection_mode[checktype]);
@@ -635,6 +636,7 @@ static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 		ret = himax_wait_sorting_mode(checktype);
 		if (ret) {
 			E("%s: himax_wait_sorting_mode FAIL\n", __func__);
+			kfree(RAW);
 			return ret;
 		}
 	}
@@ -644,6 +646,7 @@ static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 	ret = himax_get_rawdata(RAW, datalen);
 	if (ret) {
 		E("%s: himax_get_rawdata FAIL\n", __func__);
+		kfree(RAW);
 		return ret;
 	}
 
@@ -654,15 +657,20 @@ static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 	rslt_log = kzalloc(256 * sizeof(char), GFP_KERNEL);
 	start_log = kzalloc(256 * sizeof(char), GFP_KERNEL);
 
-	sprintf(start_log, "\n%s%s\n", g_himax_inspection_mode[checktype], ": data as follow!\n");
+    if (!rslt_log || !start_log) {
+        E("%s: allocate log memory failed\n", __func__);
+        kfree(RAW);
+        kfree(rslt_log);
+        kfree(start_log);
+        return HX_INSPECT_EOTHER;
+    }
+
+	snprintf(start_log, 256, "\n%s%s\n", g_himax_inspection_mode[checktype], ": data as follow!\n");
 
 	/*Check Data*/
 	switch (checktype) {
 	case HIMAX_INSPECTION_SORTING:
 		for (i = 0; i < (ic_data->HX_TX_NUM*ic_data->HX_RX_NUM); i++) {
-			/*if (himax_check_notch(i)) {
-				continue;
-			}*/
 			if ((int)RAW[i] < g_inspection_criteria[IDX_SORTMIN][i]) {
 				E("%s: sorting mode open test FAIL in index %d\n", __func__, i);
 				ret_val = HX_INSPECT_EOPEN;
@@ -673,9 +681,6 @@ static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 		break;
 	case HIMAX_INSPECTION_OPEN:
 		for (i = 0; i < (ic_data->HX_TX_NUM*ic_data->HX_RX_NUM); i++) {
-			/*if (himax_check_notch(i)) {
-				continue;
-			}*/
 			if ((int)RAW[i] > g_inspection_criteria[IDX_OPENMAX][i] || (int)RAW[i] < g_inspection_criteria[IDX_OPENMIN][i]) {
 				E("%s: open test FAIL in index %d\n", __func__, i);
 				ret_val = HX_INSPECT_EOPEN;
@@ -683,14 +688,10 @@ static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 			}
 		}
 		I("%s: open test PASS\n", __func__);
-
 		break;
 
 	case HIMAX_INSPECTION_MICRO_OPEN:
 		for (i = 0; i < (ic_data->HX_TX_NUM*ic_data->HX_RX_NUM); i++) {
-			/*if (himax_check_notch(i)) {
-				continue;
-			}*/
 			if ((int)RAW[i] > g_inspection_criteria[IDX_M_OPENMAX][i] || (int)RAW[i] < g_inspection_criteria[IDX_M_OPENMIN][i]) {
 				E("%s: micro open test FAIL in index %d\n", __func__, i);
 				ret_val = HX_INSPECT_EMOPEN;
@@ -702,9 +703,6 @@ static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 
 	case HIMAX_INSPECTION_SHORT:
 		for (i = 0; i < (ic_data->HX_TX_NUM*ic_data->HX_RX_NUM); i++) {
-			/*if (himax_check_notch(i)) {
-				continue;
-			}*/
 			if ((int)RAW[i] > g_inspection_criteria[IDX_SHORTMAX][i] || (int)RAW[i] < g_inspection_criteria[IDX_SHORTMIN][i]) {
 				E("%s: short test FAIL in index %d\n", __func__, i);
 				ret_val = HX_INSPECT_ESHORT;
@@ -716,10 +714,6 @@ static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 
 	case HIMAX_INSPECTION_RAWDATA:
 		for (i = 0; i < (ic_data->HX_TX_NUM*ic_data->HX_RX_NUM); i++) {
-			/* I("Now new compare, datalen=%d!\n",ic_data->HX_TX_NUM*ic_data->HX_RX_NUM); */
-			/*if (himax_check_notch(i)) {
-				continue;
-			}*/
 			if ((int)RAW[i] > g_inspection_criteria[IDX_RAWMAX][i] || (int)RAW[i] < g_inspection_criteria[IDX_RAWMIN][i]) {
 				E("%s: rawdata test FAIL:RAW[%d]=%d\n", __func__, i, RAW[i]);
 				I("%s: Now Criteria max=%d,min=%d\n", __func__, g_inspection_criteria[IDX_RAWMAX][i], g_inspection_criteria[IDX_RAWMIN][i]);
@@ -733,9 +727,6 @@ static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 	case HIMAX_INSPECTION_NOISE:
 		I("NOISEMAX=%d\n", NOISEMAX);
 		for (i = 0; i < (ic_data->HX_TX_NUM * ic_data->HX_RX_NUM); i++) {
-			/*if (himax_check_notch(i)) {
-				continue;
-			}*/
 			if ((int)RAW[i] > g_inspection_criteria[IDX_NOISEMAX][0]) {
 				E("%s: noise test FAIL\n", __func__);
 				ret_val = HX_INSPECT_ENOISE;
@@ -762,22 +753,17 @@ static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 
 	case HIMAX_INSPECTION_ACT_IDLE_RAWDATA:
 		for (i = 0; i < (ic_data->HX_TX_NUM*ic_data->HX_RX_NUM); i++) {
-			/*if (himax_check_notch(i)) {
-				continue;
-			}*/
 			if ((int)RAW[i] > g_inspection_criteria[IDX_ACT_IDLE_RAWDATA_MAX][i] || (int)RAW[i] < g_inspection_criteria[IDX_ACT_IDLE_RAWDATA_MIN][i]) {
-				E("%s: HIMAX_INSPECTION_ACT_IDLE_RAWDATA FAIL  in index %d\n", __func__, i);
+				E("%s: HIMAX_INSPECTION_ACT_IDLE_RAWDATA FAIL in index %d\n", __func__, i);
 				ret_val = HX_INSPECT_EACT_IDLE_RAW;
 				goto FAIL_END;
 			}
 		}
 		I("%s: HIMAX_INSPECTION_ACT_IDLE_RAWDATA PASS\n", __func__);
 		break;
+
 	case HIMAX_INSPECTION_ACT_IDLE_NOISE:
 		for (i = 0; i < (ic_data->HX_TX_NUM*ic_data->HX_RX_NUM); i++) {
-			/*if (himax_check_notch(i)) {
-				continue;
-			}*/
 			if ((int)RAW[i] > g_inspection_criteria[IDX_ACT_IDLE_NOISE_MAX][i] || (int)RAW[i] < g_inspection_criteria[IDX_ACT_IDLE_NOISE_MIN][i]) {
 				E("%s: HIMAX_INSPECTION_ACT_IDLE_NOISE FAIL in index %d\n", __func__, i);
 				ret_val = HX_INSPECT_EACT_IDLE_NOISE;
@@ -789,22 +775,17 @@ static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 
 	case HIMAX_INSPECTION_LPWUG_RAWDATA:
 		for (i = 0; i < (ic_data->HX_TX_NUM*ic_data->HX_RX_NUM); i++) {
-			/*if (himax_check_notch(i)) {
-				continue;
-			}*/
 			if ((int)RAW[i] > g_inspection_criteria[IDX_LPWUG_RAWDATA_MAX][i] || (int)RAW[i] < g_inspection_criteria[IDX_LPWUG_RAWDATA_MIN][i]) {
-				E("%s: HIMAX_INSPECTION_LPWUG_RAWDATA FAIL  in index %d\n", __func__, i);
+				E("%s: HIMAX_INSPECTION_LPWUG_RAWDATA FAIL in index %d\n", __func__, i);
 				ret_val = HX_INSPECT_ELPWUG_RAW;
 				goto FAIL_END;
 			}
 		}
 		I("%s: HIMAX_INSPECTION_LPWUG_RAWDATA PASS\n", __func__);
 		break;
+
 	case HIMAX_INSPECTION_LPWUG_NOISE:
 		for (i = 0; i < (ic_data->HX_TX_NUM * ic_data->HX_RX_NUM); i++) {
-			/*if (himax_check_notch(i)) {
-				continue;
-			}*/
 			if ((int)RAW[i] > g_inspection_criteria[IDX_LPWUG_NOISE_MAX][i] || (int)RAW[i] < g_inspection_criteria[IDX_LPWUG_NOISE_MIN][i]) {
 				E("%s: HIMAX_INSPECTION_LPWUG_NOISE FAIL in index %d\n", __func__, i);
 				ret_val = HX_INSPECT_ELPWUG_NOISE;
@@ -813,11 +794,9 @@ static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 		}
 		I("%s: HIMAX_INSPECTION_LPWUG_NOISE PASS\n", __func__);
 		break;
+
 	case HIMAX_INSPECTION_LPWUG_IDLE_RAWDATA:
 		for (i = 0; i < (ic_data->HX_TX_NUM*ic_data->HX_RX_NUM); i++) {
-			/*if (himax_check_notch(i)) {
-				continue;
-			}*/
 			if ((int)RAW[i] > g_inspection_criteria[IDX_LPWUG_IDLE_RAWDATA_MAX][i] || (int)RAW[i] < g_inspection_criteria[IDX_LPWUG_IDLE_RAWDATA_MIN][i]) {
 				E("%s: HIMAX_INSPECTION_LPWUG_IDLE_RAWDATA FAIL in index %d\n", __func__, i);
 				ret_val = HX_INSPECT_ELPWUG_IDLE_RAW;
@@ -826,11 +805,9 @@ static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 		}
 		I("%s: HIMAX_INSPECTION_LPWUG_IDLE_RAWDATA PASS\n", __func__);
 		break;
+
 	case HIMAX_INSPECTION_LPWUG_IDLE_NOISE:
 		for (i = 0; i < (ic_data->HX_TX_NUM*ic_data->HX_RX_NUM); i++) {
-			/*if (himax_check_notch(i)) {
-				continue;
-			}*/
 			if ((int)RAW[i] > g_inspection_criteria[IDX_LPWUG_IDLE_NOISE_MAX][i] || (int)RAW[i] < g_inspection_criteria[IDX_LPWUG_IDLE_NOISE_MIN][i]) {
 				E("%s: HIMAX_INSPECTION_LPWUG_IDLE_NOISE FAIL in index %d\n", __func__, i);
 				ret_val = HX_INSPECT_ELPWUG_IDLE_NOISE;
@@ -846,16 +823,19 @@ static uint32_t mpTestFunc(uint8_t checktype, uint32_t datalen)
 	}
 
 	ret_val = HX_INSPECT_OK;
-	sprintf(rslt_log, "\n%s%s\n", g_himax_inspection_mode[checktype], " Test Pass!\n");
+	snprintf(rslt_log, 256, "\n%s%s\n", g_himax_inspection_mode[checktype], " Test Pass!\n");
 	I("pass write log\n");
 	goto END_FUNC;
 
 FAIL_END:
-	sprintf(rslt_log, "\n%s%s\n", g_himax_inspection_mode[checktype], " Test Fail!\n");
+	snprintf(rslt_log, 256, "\n%s%s\n", g_himax_inspection_mode[checktype], " Test Fail!\n");
 	I("fail write log\n");
+
 END_FUNC:
 	hx_test_data_get(RAW, start_log, rslt_log, checktype);
+	kfree(RAW);
 	kfree(rslt_log);
+	kfree(start_log);
 	return ret_val;
 }
 

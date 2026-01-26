@@ -216,17 +216,22 @@ int himax_bus_read(uint8_t command, uint8_t *data, uint32_t length, uint8_t toRe
 
 int himax_bus_write(uint8_t command, uint8_t *data, uint32_t length, uint8_t toRetry)
 {
-	int retry/*, loop_i*/;
-	uint8_t buf[length + 1];
+	int retry;
+	uint8_t *buf;
 	struct i2c_client *client = private_ts->client;
-	struct i2c_msg msg[] = {
-		{
-			.addr = client->addr,
-			.flags = 0,
-			.len = length + 1,
-			.buf = buf,
-		}
-	};
+	struct i2c_msg msg[1];
+
+	buf = kmalloc(length + 1, GFP_KERNEL);
+	if (!buf) {
+		E("%s: allocate memory failed\n", __func__);
+		return -ENOMEM;
+	}
+
+	msg[0].addr = client->addr;
+	msg[0].flags = 0;
+	msg[0].len = length + 1;
+	msg[0].buf = buf;
+
 	mutex_lock(&private_ts->rw_lock);
 	buf[0] = command;
 	memcpy(buf + 1, data, length);
@@ -243,10 +248,12 @@ int himax_bus_write(uint8_t command, uint8_t *data, uint32_t length, uint8_t toR
 		  __func__, toRetry);
 		i2c_error_count = toRetry;
 		mutex_unlock(&private_ts->rw_lock);
+		kfree(buf);
 		return -EIO;
 	}
 
 	mutex_unlock(&private_ts->rw_lock);
+	kfree(buf);
 	return 0;
 }
 
@@ -257,17 +264,22 @@ int himax_bus_write_command(uint8_t command, uint8_t toRetry)
 
 int himax_bus_master_write(uint8_t *data, uint32_t length, uint8_t toRetry)
 {
-	int retry/*, loop_i*/;
-	uint8_t buf[length];
+	int retry;
+	uint8_t *buf;
 	struct i2c_client *client = private_ts->client;
-	struct i2c_msg msg[] = {
-		{
-			.addr = client->addr,
-			.flags = 0,
-			.len = length,
-			.buf = buf,
-		}
-	};
+	struct i2c_msg msg[1];
+
+	buf = kmalloc(length, GFP_KERNEL);
+	if (!buf) {
+		E("%s: allocate memory failed\n", __func__);
+		return -ENOMEM;
+	}
+
+	msg[0].addr = client->addr;
+	msg[0].flags = 0;
+	msg[0].len = length;
+	msg[0].buf = buf;
+
 	mutex_lock(&private_ts->rw_lock);
 	memcpy(buf, data, length);
 
@@ -283,10 +295,12 @@ int himax_bus_master_write(uint8_t *data, uint32_t length, uint8_t toRetry)
 		  __func__, toRetry);
 		i2c_error_count = toRetry;
 		mutex_unlock(&private_ts->rw_lock);
+		kfree(buf);
 		return -EIO;
 	}
 
 	mutex_unlock(&private_ts->rw_lock);
+	kfree(buf);
 	return 0;
 }
 
