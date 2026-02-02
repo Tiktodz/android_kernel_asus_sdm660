@@ -1,6 +1,5 @@
 /* Optimized cdfinger driver for ASUS X00TD/X01BD (SDM660/636) Kernel 4.19 */
 /* Based on generic cdfinger driver */
-/* Fixed IRQ handling and Goodix coexistence */
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -83,13 +82,13 @@ struct cdfinger_key_map {
 #define CDFINGER_WAKE_LOCK					_IOW(CDFINGER_IOCTL_MAGIC_NO, 26, uint8_t)
 #define CDFINGER_ENABLE_IRQ            		_IOW(CDFINGER_IOCTL_MAGIC_NO, 27, uint8_t)
 
-#define CF_NAV_INPUT_UP						KEY_UP
-#define CF_NAV_INPUT_DOWN					KEY_DOWN
-#define CF_NAV_INPUT_LEFT					KEY_LEFT
-#define CF_NAV_INPUT_RIGHT					KEY_RIGHT
-#define CF_NAV_INPUT_CLICK					KEY_ENTER
-#define CF_NAV_INPUT_DOUBLE_CLICK			KEY_VOLUMEUP
-#define CF_NAV_INPUT_LONG_PRESS				KEY_VOLUMEDOWN
+#define CF_NAV_INPUT_UP						FP_KEY_UP
+#define CF_NAV_INPUT_DOWN					FP_KEY_DOWN
+#define CF_NAV_INPUT_LEFT					FP_KEY_LEFT
+#define CF_NAV_INPUT_RIGHT					FP_KEY_RIGHT
+#define CF_NAV_INPUT_CLICK					FP_KEY_CLICK
+#define CF_NAV_INPUT_DOUBLE_CLICK			FP_KEY_DOUBLE_CLICK
+#define CF_NAV_INPUT_LONG_PRESS				FP_KEY_LONG_PRESS
 
 #define CF_KEY_INPUT_HOME					KEY_HOME
 #define CF_KEY_INPUT_MENU					KEY_MENU
@@ -100,11 +99,14 @@ struct cdfinger_key_map {
 #define DEVICE_NAME "fpsdev0"
 #define INPUT_DEVICE_NAME "cdfinger_input"
 
+//#define SUPPORT_ID_NUM
 #define POWER_GPIO
+//#define POWER_REGULATOR
 
-static int isInKeyMode = 0;
-static int screen_status = 1;
+static int isInKeyMode = 0; // key mode
+static int screen_status = 1; // screen on
 static u8 cdfinger_debug = 0x01;
+static int isInit = 0;
 
 #define CDFINGER_DBG(fmt, args...) \
 	do{ \
@@ -120,10 +122,19 @@ static u8 cdfinger_debug = 0x01;
 struct cdfingerfp_data {
 	struct platform_device *cdfinger_dev;
 	struct miscdevice *miscdev;
+#ifdef SUPPORT_ID_NUM
+	u32 id_num;
+	u8 chip_id;
+	struct pinctrl *fps_pinctrl;
+	struct pinctrl_state *fps_id_high;
+#endif
 	u32 irq_num;
 	u32 reset_num;
 #ifdef POWER_GPIO
 	u32 pwr_num;
+#endif
+#ifdef POWER_REGULATOR
+	struct regulator *vdd;
 #endif
 	struct fasync_struct *async_queue;
 	struct wakeup_source *cdfinger_lock;
@@ -131,12 +142,7 @@ struct cdfingerfp_data {
 	struct mutex buf_lock;
 	struct input_dev* cdfinger_input;
 	int irq_enable_status;
-	bool wake_held;
-	
-	/* === ДОБАВЛЕНО: Флаги состояния ресурсов === */
-	bool gpio_initialized;      /* GPIO были успешно инициализированы */
-	bool irq_requested;         /* IRQ был успешно запрошен */
-	int irq_line;               /* Номер IRQ линии (-1 если не инициализирован) */
+	bool wake_held; /* Track wake lock status internally */
 } *g_cdfingerfp_data;
 
 static struct cdfinger_key_map maps[] = {
@@ -154,6 +160,7 @@ static struct cdfinger_key_map maps[] = {
 	{ EV_KEY, CF_NAV_INPUT_LONG_PRESS },
 };
 
+/* Optimization: Smart delay helper */
 static void cdfinger_smart_delay(int ms)
 {
 	if (ms <= 20)
@@ -162,32 +169,10 @@ static void cdfinger_smart_delay(int ms)
 		msleep(ms);
 }
 
-/* === ИСПРАВЛЕНО: Проверка конфликта с Goodix === */
-static bool cdfinger_check_goodix_conflict(void)
-{
-	struct file *fp;
-	
-	/* Проверяем существует ли устройство Goodix */
-	fp = filp_open("/dev/goodix_fp", O_RDONLY | O_NONBLOCK, 0);
-	if (!IS_ERR(fp)) {
-		filp_close(fp, NULL);
-		CDFINGER_DBG("Goodix fingerprint device detected, skipping IRQ init\n");
-		return true;
-	}
-	
-	return false;
-}
-
 static int cdfinger_init_gpio(struct cdfingerfp_data *cdfinger)
 {
 	int err = 0;
 	CDFINGER_DBG("enter\n");
-
-	/* Уже инициализированы */
-	if (cdfinger->gpio_initialized) {
-		CDFINGER_DBG("GPIO already initialized\n");
-		return 0;
-	}
 
 #ifdef POWER_GPIO
 	if (gpio_is_valid(cdfinger->pwr_num)) {
@@ -202,8 +187,8 @@ static int cdfinger_init_gpio(struct cdfingerfp_data *cdfinger)
 			}
 		}
 	} else {
-		CDFINGER_DBG("pwr gpio not valid, skipping\n");
-		/* Не возвращаем ошибку - pwr может быть опциональным */
+		CDFINGER_DBG("not valid pwr gpio\n");
+		return -EIO;
 	}
 #endif
 
@@ -214,14 +199,19 @@ static int cdfinger_init_gpio(struct cdfingerfp_data *cdfinger)
 			err = gpio_request(cdfinger->reset_num, "cdfinger-reset");
 			if (err) {
 				CDFINGER_ERR("Could not request reset gpio.\n");
-				goto err_free_pwr;
+#ifdef POWER_GPIO
+				gpio_free(cdfinger->pwr_num);
+#endif
+				return err;
 			}
 		}
 		gpio_direction_output(cdfinger->reset_num, 1);
 	} else {
 		CDFINGER_ERR("not valid reset gpio\n");
-		err = -EIO;
-		goto err_free_pwr;
+#ifdef POWER_GPIO
+		gpio_free(cdfinger->pwr_num);
+#endif
+		return -EIO;
 	}
 
 	if (gpio_is_valid(cdfinger->irq_num)) {
@@ -231,70 +221,50 @@ static int cdfinger_init_gpio(struct cdfingerfp_data *cdfinger)
 			err = gpio_request(cdfinger->irq_num, "cdfinger-irq");
 			if (err) {
 				CDFINGER_ERR("Could not request irq gpio.\n");
-				goto err_free_reset;
+				gpio_free(cdfinger->reset_num);
+#ifdef POWER_GPIO
+				gpio_free(cdfinger->pwr_num);
+#endif
+				return err;
 			}
 		}
 		gpio_direction_input(cdfinger->irq_num);
 	} else {
 		CDFINGER_ERR("not valid irq gpio\n");
-		err = -EIO;
-		goto err_free_reset;
-	}
-
-	cdfinger->gpio_initialized = true;
-	CDFINGER_DBG("GPIO initialized successfully\n");
-	return 0;
-
-err_free_reset:
-	if (gpio_is_valid(cdfinger->reset_num))
 		gpio_free(cdfinger->reset_num);
-err_free_pwr:
 #ifdef POWER_GPIO
-	if (gpio_is_valid(cdfinger->pwr_num))
 		gpio_free(cdfinger->pwr_num);
 #endif
+		return -EIO;
+	}
+
 	return err;
 }
 
-/* === ИСПРАВЛЕНО: Безопасное освобождение GPIO === */
 static int cdfinger_free_gpio(struct cdfingerfp_data *cdfinger)
 {
 	CDFINGER_DBG("enter\n");
 
-	/* Сначала освобождаем IRQ, если он был захвачен */
-	if (cdfinger->irq_requested && cdfinger->irq_line > 0) {
-		CDFINGER_DBG("Freeing IRQ %d\n", cdfinger->irq_line);
-		disable_irq_wake(cdfinger->irq_line);
-		disable_irq(cdfinger->irq_line);
-		free_irq(cdfinger->irq_line, (void*)cdfinger);
-		cdfinger->irq_requested = false;
-		cdfinger->irq_line = -1;
-		cdfinger->irq_enable_status = 0;
+	if (gpio_is_valid(cdfinger->irq_num)) {
+		// Ensure IRQ is freed before GPIO
+		free_irq(gpio_to_irq(cdfinger->irq_num), (void*)cdfinger);
+		gpio_free(cdfinger->irq_num);
 	}
 
-	/* Освобождаем GPIO только если они были инициализированы */
-	if (cdfinger->gpio_initialized) {
-		if (gpio_is_valid(cdfinger->irq_num))
-			gpio_free(cdfinger->irq_num);
-
-		if (gpio_is_valid(cdfinger->reset_num))
-			gpio_free(cdfinger->reset_num);
-
+	if (gpio_is_valid(cdfinger->reset_num)) {
+		gpio_free(cdfinger->reset_num);
+	}
 #ifdef POWER_GPIO
-		if (gpio_is_valid(cdfinger->pwr_num))
-			gpio_free(cdfinger->pwr_num);
-#endif
-		cdfinger->gpio_initialized = false;
+	if (gpio_is_valid(cdfinger->pwr_num)) {
+		gpio_free(cdfinger->pwr_num);
 	}
-
+#endif
 	return 0;
 }
 
 static void cdfinger_reset(struct cdfingerfp_data *pdata, int ms)
 {
-	if (!pdata->gpio_initialized || !gpio_is_valid(pdata->reset_num))
-		return;
-		
+	/* Optimization: Use usleep_range instead of mdelay to allow CPU to sleep/schedule */
 	gpio_set_value(pdata->reset_num, 1);
 	cdfinger_smart_delay(ms);
 	gpio_set_value(pdata->reset_num, 0);
@@ -305,36 +275,54 @@ static void cdfinger_reset(struct cdfingerfp_data *pdata, int ms)
 
 static int cdfinger_parse_dts(struct device *dev, struct cdfingerfp_data *cdfinger)
 {
+	int err = 0;
 	CDFINGER_DBG("enter\n");
-	
 #ifdef POWER_GPIO
 	cdfinger->pwr_num = of_get_named_gpio(dev->of_node, "cdfinger,gpio_vdd", 0);
-	if (!gpio_is_valid(cdfinger->pwr_num))
-		CDFINGER_DBG("pwr_num gpio not specified in DT\n");
 #endif
 	cdfinger->reset_num = of_get_named_gpio(dev->of_node, "cdfinger,reset_gpio", 0);
 	cdfinger->irq_num = of_get_named_gpio(dev->of_node, "cdfinger,irq_gpio", 0);
+#ifdef POWER_REGULATOR
+	cdfinger->vdd = regulator_get(dev, "vdd");
+#endif
 
-	CDFINGER_DBG("reset_num=%d, irq_num=%d\n", cdfinger->reset_num, cdfinger->irq_num);
-	
-	return 0;
+#ifdef SUPPORT_ID_NUM
+	cdfinger->id_num = of_get_named_gpio(dev->of_node, "cdfinger,id_gpio", 0);
+	cdfinger->fps_pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR(cdfinger->fps_pinctrl)) {
+		CDFINGER_ERR("pinctrl get failed!\n");
+		err = -1;
+	}
+#endif
+	return err;
 }
 
 static int cdfinger_power_on(struct cdfingerfp_data *pdata)
 {
+	int ret = 0;
 #ifdef POWER_GPIO
-	if (gpio_is_valid(pdata->pwr_num))
-		gpio_direction_output(pdata->pwr_num, 1);
+	gpio_direction_output(pdata->pwr_num, 1);
 #endif
+#ifdef POWER_REGULATOR
+	regulator_set_voltage(pdata->vdd, 0, 2800000);
+	ret = regulator_enable(pdata->vdd);
+	if(ret) {
+		CDFINGER_ERR("enable regulator fail\n");
+		return ret;
+	}
+#endif
+	/* Give hardware time to stabilize without busy waiting */
 	msleep(10);
-	return 0;
+	return ret;
 }
 
 static int cdfinger_power_off(struct cdfingerfp_data *pdata)
 {
 #ifdef POWER_GPIO
-	if (gpio_is_valid(pdata->pwr_num))
-		gpio_direction_output(pdata->pwr_num, 0);
+	gpio_direction_output(pdata->pwr_num, 0);
+#endif
+#ifdef POWER_REGULATOR
+	regulator_disable(pdata->vdd);
 #endif
 	cdfinger_smart_delay(1);
 	return 0;
@@ -362,6 +350,7 @@ static int cdfinger_release(struct inode *inode, struct file *file)
 
 static void cdfinger_wake_lock(struct cdfingerfp_data *pdata, int arg)
 {
+	/* Optimized: Remove global race condition on wake_flag */
 	if(arg) {
 		if(!pdata->wake_held) {
 			__pm_stay_awake(pdata->cdfinger_lock);
@@ -389,99 +378,63 @@ static irqreturn_t cdfinger_eint_handler(int irq, void *dev_id)
 	if (pdata->irq_enable_status == 1) {
 		cdfinger_wake_lock(pdata, 1);
 		cdfinger_async_report();
+		/* On SDM660/636, this can potentially trigger a boost if integrated with sched/walt 
+		   but generic wake lock is usually sufficient for short bursts */
 	}
 	return IRQ_HANDLED;
 }
 
-/* === ИСПРАВЛЕНО: Безопасная инициализация IRQ === */
 static int cdfinger_init_irq(struct cdfingerfp_data *pdata)
 {
 	int error = 0;
-	int irq;
-	
 	CDFINGER_DBG("enter\n");
 
-	/* Уже инициализирован */
-	if (pdata->irq_requested) {
-		CDFINGER_DBG("IRQ already requested\n");
+	if (isInit == 1)
 		return 0;
-	}
 
-	/* Проверка конфликта с Goodix */
-	if (cdfinger_check_goodix_conflict()) {
-		CDFINGER_ERR("Goodix driver already using fingerprint, aborting\n");
-		return -EBUSY;
-	}
-
-	if (!gpio_is_valid(pdata->irq_num)) {
-		CDFINGER_ERR("Invalid IRQ GPIO\n");
-		return -EINVAL;
-	}
-
-	irq = gpio_to_irq(pdata->irq_num);
-	if (irq < 0) {
-		CDFINGER_ERR("gpio_to_irq failed: %d\n", irq);
-		return irq;
-	}
-
-	CDFINGER_DBG("Requesting IRQ %d for GPIO %d\n", irq, pdata->irq_num);
-
-	error = request_threaded_irq(irq,
-				     NULL,
-				     cdfinger_eint_handler,
+	error = request_threaded_irq(gpio_to_irq(pdata->irq_num),
+				     NULL, /* Top half */
+				     cdfinger_eint_handler, /* Bottom half (threaded) */
 				     IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				     "cdfinger_eint",
 				     (void*)pdata);
 
-	if (error) {
-		CDFINGER_ERR("request_threaded_irq failed: %d (IRQ %d may be in use)\n", error, irq);
-		pdata->irq_requested = false;
-		pdata->irq_line = -1;
+	if (error < 0) {
+		CDFINGER_ERR("irq init err %d\n", error);
 		return error;
 	}
 	
-	/* Успешно захватили IRQ */
-	pdata->irq_line = irq;
-	pdata->irq_requested = true;
+	/* Critical for fingerprint wakeup functionality */
+	enable_irq_wake(gpio_to_irq(pdata->irq_num));
 	pdata->irq_enable_status = 1;
-	
-	enable_irq_wake(irq);
-	
-	CDFINGER_DBG("IRQ %d initialized successfully\n", irq);
-	return 0;
+	isInit = 1;
+	return error;
 }
 
 static void cdfinger_enable_irq(struct cdfingerfp_data *pdata)
 {
-	if (!pdata->irq_requested || pdata->irq_line < 0)
-		return;
-		
 	if (pdata->irq_enable_status == 0) {
-		enable_irq(pdata->irq_line);
-		enable_irq_wake(pdata->irq_line);
+		enable_irq(gpio_to_irq(pdata->irq_num));
+		enable_irq_wake(gpio_to_irq(pdata->irq_num));
 		pdata->irq_enable_status = 1;
 	}
 }
 
 static void cdfinger_disable_irq(struct cdfingerfp_data *pdata)
 {
-	if (!pdata->irq_requested || pdata->irq_line < 0)
-		return;
-		
 	if (pdata->irq_enable_status == 1) {
-		disable_irq_wake(pdata->irq_line);
-		disable_irq(pdata->irq_line);
+		disable_irq_wake(gpio_to_irq(pdata->irq_num));
+		disable_irq(gpio_to_irq(pdata->irq_num));
 		pdata->irq_enable_status = 0;
 	}
 }
 
 static int cdfinger_irq_controller(struct cdfingerfp_data *pdata, int Onoff)
 {
-	if (!pdata->irq_requested) {
-		CDFINGER_ERR("IRQ not requested!\n");
+	if (isInit == 0) {
+		CDFINGER_ERR("irq not request!!!\n");
 		return -1;
 	}
-	
 	if (Onoff == 1) {
 		cdfinger_enable_irq(pdata);
 		return 0;
@@ -490,8 +443,7 @@ static int cdfinger_irq_controller(struct cdfingerfp_data *pdata, int Onoff)
 		cdfinger_disable_irq(pdata);
 		return 0;
 	}
-	
-	CDFINGER_ERR("Invalid IRQ control parameter: %d\n", Onoff);
+	CDFINGER_ERR("irq status parameter err %d !!!\n", Onoff);
 	return -1;
 }
 
@@ -499,7 +451,7 @@ static int cdfinger_report_key(struct cdfingerfp_data *cdfinger, unsigned long a
 {
 	key_report_t report;
 	if (copy_from_user(&report, (key_report_t __user *)arg, sizeof(key_report_t))) {
-		CDFINGER_ERR("copy_from_user failed\n");
+		CDFINGER_ERR("%s copy_from_user err\n", __func__);
 		return -EFAULT;
 	}
 	
@@ -524,9 +476,7 @@ static long cdfinger_ioctl(struct file* filp, unsigned int cmd, unsigned long ar
 	int err = 0;
 	struct cdfingerfp_data *cdfinger = filp->private_data;
 
-	if (!cdfinger)
-		return -EINVAL;
-
+	/* Optimization: Use mutex_lock_interruptible to allow signal interruption */
 	if (mutex_lock_interruptible(&cdfinger->buf_lock))
 		return -ERESTARTSYS;
 
@@ -537,10 +487,18 @@ static long cdfinger_ioctl(struct file* filp, unsigned int cmd, unsigned long ar
 
 		case CDFINGER_INIT_IRQ:
 			err = cdfinger_init_irq(cdfinger);
+#ifdef SUPPORT_ID_NUM
+			cdfinger->chip_id = 0x98;
+#endif
 			break;
 
 		case CDFINGER_RELEASE_DEVICE:
+			isInit = 0;
 			cdfinger_free_gpio(cdfinger);
+#ifdef SUPPORT_ID_NUM
+			cdfinger->chip_id = 0x00;
+#endif
+			misc_deregister(cdfinger->miscdev);
 			break;
 
 		case CDFINGER_WAKE_LOCK:
@@ -550,11 +508,9 @@ static long cdfinger_ioctl(struct file* filp, unsigned int cmd, unsigned long ar
 		case CDFINGER_POWER_ON:
 			err = cdfinger_power_on(cdfinger);
 			break;
-			
 		case CDFINGER_POWER_OFF:
 			err = cdfinger_power_off(cdfinger);
 			break;
-			
 		case CDFINGER_RESET:
 			cdfinger_reset(cdfinger, 1);
 			break;
@@ -576,19 +532,18 @@ static long cdfinger_ioctl(struct file* filp, unsigned int cmd, unsigned long ar
 		case CDFINGER_GET_STATUS:
 			err = screen_status;
 			break;
-			
 		case CDFINGER_ENABLE_IRQ:
 			err = cdfinger_irq_controller(cdfinger, arg);
 			break;
-			
 		case CDFINGER_REPORT_KEY:
 			err = cdfinger_report_key(cdfinger, arg);
 			break;
 
 		case CDFINGER_GETID:
-			err = 0x98; /* Default chip ID */
+#ifdef SUPPORT_ID_NUM
+			err = cdfinger->chip_id;
+#endif
 			break;
-			
 		default:
 			err = -EINVAL;
 			break;
@@ -627,9 +582,11 @@ static int cdfinger_fb_notifier_callback(struct notifier_block* self,
 {
 	struct fb_event* evdata = data;
 	unsigned int blank;
+	int retval = 0;
 
-	if (event != FB_EVENT_BLANK)
+	if (event != FB_EVENT_BLANK) {
 		return 0;
+	}
 
 	blank = *(int*)evdata->data;
 
@@ -654,8 +611,39 @@ static int cdfinger_fb_notifier_callback(struct notifier_block* self,
 			break;
 	}
 
-	return 0;
+	return retval;
 }
+
+#ifdef SUPPORT_ID_NUM
+static int cdfinger_support_id(struct cdfingerfp_data *cdfinger)
+{
+	int err = 0;
+	cdfinger->fps_id_high = pinctrl_lookup_state(cdfinger->fps_pinctrl, "cdfinger_id_pin");
+	if (IS_ERR(cdfinger->fps_id_high)){
+		CDFINGER_ERR("look up state err\n");
+		return -1;
+	}
+	pinctrl_select_state(cdfinger->fps_pinctrl, cdfinger->fps_id_high);
+	if (gpio_is_valid(cdfinger->id_num)) {
+		err = gpio_request(cdfinger->id_num, "cdfinger-id");
+		if (err) {
+			gpio_free(cdfinger->id_num);
+			err = gpio_request(cdfinger->id_num, "cdfinger-id");
+			if (err) {
+				CDFINGER_ERR("Could not request id gpio.\n");
+				return err;
+			}
+		}
+		gpio_direction_input(cdfinger->id_num);
+	} else {
+		CDFINGER_ERR("not valid irq gpio\n");
+		return -EIO;
+	}
+	err = gpio_get_value(cdfinger->id_num);
+	gpio_free(cdfinger->id_num);
+	return err;
+}
+#endif
 
 static int cdfinger_probe(struct platform_device *pdev)
 {
@@ -663,24 +651,9 @@ static int cdfinger_probe(struct platform_device *pdev)
 	int status = -ENODEV;
 	int i;
 
-	CDFINGER_DBG("enter\n");
-
-	/* Проверка конфликта с Goodix на раннем этапе */
-	if (cdfinger_check_goodix_conflict()) {
-		CDFINGER_DBG("Goodix fingerprint detected, cdfinger probe skipped\n");
-		return -ENODEV;
-	}
-
 	cdfingerdev = kzalloc(sizeof(struct cdfingerfp_data), GFP_KERNEL);
 	if (!cdfingerdev)
 		return -ENOMEM;
-
-	/* Инициализация флагов состояния */
-	cdfingerdev->gpio_initialized = false;
-	cdfingerdev->irq_requested = false;
-	cdfingerdev->irq_line = -1;
-	cdfingerdev->irq_enable_status = 0;
-	cdfingerdev->wake_held = false;
 
 	cdfingerdev->cdfinger_dev = pdev;
 
@@ -691,6 +664,15 @@ static int cdfinger_probe(struct platform_device *pdev)
 		return -1;
 	}
 
+#ifdef SUPPORT_ID_NUM
+	status = cdfinger_support_id(cdfingerdev);
+	if (status != 1) {
+		CDFINGER_ERR("cdfinger support id error %d\n", status);
+		kfree(cdfingerdev);
+		return -1;
+	}
+#endif
+
 	status = misc_register(&st_cdfinger_dev);
 	if (status) {
 		CDFINGER_ERR("cdfinger misc register err%d\n", status);
@@ -700,10 +682,11 @@ static int cdfinger_probe(struct platform_device *pdev)
 	cdfingerdev->miscdev = &st_cdfinger_dev;
 	mutex_init(&cdfingerdev->buf_lock);
 	cdfingerdev->cdfinger_lock = wakeup_source_register(NULL, "cdfinger wakelock");
+	cdfingerdev->wake_held = false;
 
 	cdfingerdev->cdfinger_input = input_allocate_device();
 	if (!cdfingerdev->cdfinger_input) {
-		CDFINGER_ERR("create cdfinger_input failed!\n");
+		CDFINGER_ERR("crate cdfinger_input faile!\n");
 		goto unregister_dev;
 	}
 
@@ -777,7 +760,7 @@ static struct platform_driver cdfinger_driver = {
 
 module_platform_driver(cdfinger_driver);
 
-MODULE_DESCRIPTION("Optimized cdfinger Driver for ASUS X00TD/X01BD with Goodix coexistence fix");
+MODULE_DESCRIPTION("Optimized cdfinger Driver for ASUS X00TD/X01BD");
 MODULE_AUTHOR("cdfinger@cdfinger.com");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("cdfinger");
