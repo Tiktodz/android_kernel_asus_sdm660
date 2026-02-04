@@ -799,10 +799,11 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 
 		if (nids[i] && nids[i] == dn->inode->i_ino) {
 			err = -EFSCORRUPTED;
-			pr_warn(sbi->sb, KERN_ERR,
-				"inode mapping table is corrupted, run fsck to fix it, "
-				"ino:%lu, nid:%u, level:%d, offset:%d",
+			pr_warn("F2FS: inode mapping table is corrupted, run fsck to fix it, "
+				"ino:%lu, nid:%u, level:%d, offset:%d\n",
 				dn->inode->i_ino, nids[i], level, offset[level]);
+				set_sbi_flag(sbi, SBI_NEED_FSCK);
+
 			set_sbi_flag(sbi, SBI_NEED_FSCK);
 			goto release_pages;
 		}
