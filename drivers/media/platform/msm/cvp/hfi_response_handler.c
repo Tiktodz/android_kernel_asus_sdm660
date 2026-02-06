@@ -550,6 +550,7 @@ static int hfi_process_session_cvp_msg(u32 device_id,
 	wake_up_all(&inst->session_queue.wq);
 
 	info->response_type = HAL_NO_RESP;
+	cvp_put_inst(inst);
 
 	return 0;
 
