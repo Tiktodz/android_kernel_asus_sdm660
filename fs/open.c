@@ -32,10 +32,6 @@
 #include <linux/dnotify.h>
 #include <linux/compat.h>
 
-#ifdef CONFIG_KSU
-#include <linux/ksu.h>
-#endif
-
 #include "internal.h"
 
 int do_truncate2(struct vfsmount *mnt, struct dentry *dentry, loff_t length,
@@ -352,16 +348,15 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
 	return ksys_fallocate(fd, mode, offset, len);
 }
 
-#ifdef CONFIG_KSU
-extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
-			 int *flags);
-#endif
-
 /*
  * access() needs to use the real uid/gid, not the effective uid/gid.
  * We do this by temporarily clearing all FS-related capabilities and
  * switching the fsuid/fsgid around to the real ones.
  */
+#ifdef CONFIG_KSU
+extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
+			 int *flags);
+#endif
 long do_faccessat(int dfd, const char __user *filename, int mode)
 {
 	const struct cred *old_cred;
@@ -373,10 +368,8 @@ long do_faccessat(int dfd, const char __user *filename, int mode)
 	unsigned int lookup_flags = LOOKUP_FOLLOW;
 
 #ifdef CONFIG_KSU
-	if (get_ksu_state() > 0)
-		ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
+	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
 #endif
-
 	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
 		return -EINVAL;
 

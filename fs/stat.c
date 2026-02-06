@@ -17,9 +17,6 @@
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
 #include <linux/compat.h>
-#ifdef CONFIG_KSU
-#include <linux/ksu.h>
-#endif
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -151,10 +148,6 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
 }
 EXPORT_SYMBOL(vfs_statx_fd);
 
-#ifdef CONFIG_KSU
-extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
-#endif
-
 /**
  * vfs_statx - Get basic and extra attributes by filename
  * @dfd: A file descriptor representing the base dir for a relative filename
@@ -170,6 +163,9 @@ extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *fla
  *
  * 0 will be returned on success, and a -ve error code if unsuccessful.
  */
+#ifdef CONFIG_KSU
+extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
+#endif
 int vfs_statx(int dfd, const char __user *filename, int flags,
 	      struct kstat *stat, u32 request_mask)
 {
@@ -178,8 +174,7 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
 	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
 
 #ifdef CONFIG_KSU
-	if (get_ksu_state() > 0)
-		ksu_handle_stat(&dfd, &filename, &flags);
+	ksu_handle_stat(&dfd, &filename, &flags);
 #endif
 
 	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
