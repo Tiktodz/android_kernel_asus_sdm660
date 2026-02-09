@@ -2933,7 +2933,7 @@ static bool iterate_mm_list(struct lruvec *lruvec, struct lru_gen_mm_walk *walk,
 	if (!mm_state->head)
  		mm_state->head = &mm_list->fifo;
 
-		if (mm_state->head == &mm_list->fifo)
+	if (mm_state->head == &mm_list->fifo)
 		first = true;
 
 	do {
