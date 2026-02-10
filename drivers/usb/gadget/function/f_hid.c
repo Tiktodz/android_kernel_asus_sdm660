@@ -455,11 +455,12 @@ static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
 
 	spin_lock_irqsave(&hidg->write_spinlock, flags);
 
-#define WRITE_COND (!hidg->write_pending || !hidg->bound)
 	if (!hidg->req) {
 		spin_unlock_irqrestore(&hidg->write_spinlock, flags);
 		return -ESHUTDOWN;
 	}
+
+#define WRITE_COND (!hidg->write_pending || !hidg->bound)
 try_again:
 	/* write queue */
 	while (!WRITE_COND) {
@@ -575,8 +576,7 @@ static void hidg_destroy(struct kref *kref)
 {
 	struct f_hidg *hidg = container_of(kref, struct f_hidg, kref);
 
-	kfree(hidg->report_desc);
-	kfree(hidg);
+	put_device(&hidg->dev);
 }
 
 static int f_hidg_release(struct inode *inode, struct file *fd)
