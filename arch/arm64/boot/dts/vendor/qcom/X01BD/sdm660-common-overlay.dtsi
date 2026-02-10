@@ -25,6 +25,7 @@
         usb-phy = <&qusb_phy0>, <&usb_nop_phy>;
         dr_mode = "otg";
         snps,usb3-u1u2-disable;
+        qcom,reset-ep-after-lpm-resume;
     };
 };
 

@@ -24,7 +24,7 @@
 };
 
 &pm660_charger {
-	qcom,micro-usb;
+	qcom,use-extcon;
 	qcom,fcc-max-ua = <2000000>;
 	qcom,fv-max-uv = <4350000>;
 	qcom,usb-icl-ua = <2000000>;
@@ -33,11 +33,9 @@
 	qcom,wipower-max-uw = <0>;
 	qcom,otg-cl-ua = <1000000>;
 	qcom,boost-threshold-ua = <100000>;
-	qcom,aicl-rerun-period-s = <45>;
 	qcom,thermal-mitigation = <2000000 1800000 1500000 1200000 
                                1000000 700000 500000 300000>;
 	qcom,hvdcp-disable;
-    /delete-property/ qcom,hvdcp-autonomous;
 };
 
 &pm660_pdphy {

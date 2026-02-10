@@ -64,9 +64,7 @@ enum print_reason {
 #define MOISTURE_VOTER			"MOISTURE_VOTER"
 #define HVDCP2_ICL_VOTER		"HVDCP2_ICL_VOTER"
 #define OV_VOTER			"OV_VOTER"
-#ifndef CONFIG_MACH_ASUS_SDM660
 #define FG_ESR_VOTER			"FG_ESR_VOTER"
-#endif
 #define FCC_STEPPER_VOTER		"FCC_STEPPER_VOTER"
 #define PD_NOT_SUPPORTED_VOTER		"PD_NOT_SUPPORTED_VOTER"
 
@@ -313,22 +311,6 @@ struct smb_charger {
 	struct delayed_work	uusb_otg_work;
 	struct delayed_work	bb_removal_work;
 
-#ifdef CONFIG_MACH_ASUS_SDM660	
-/* Huaqin modify for ZQL1650-70 Identify Adapter ID by fangaijun at 2018/02/8 start */
-	struct delayed_work	asus_chg_flow_work;
-	struct delayed_work	asus_adapter_adc_work;
-/* Huaqin modify for ZQL1650-70 Identify Adapter ID by fangaijun at 2018/02/8 end */
-/* Huaqin add for ZQL1650-68 Realize jeita function by fangaijun at 2018/02/03 start */
-	struct delayed_work	asus_min_monitor_work;
-/* Huaqin add for ZQL1650-68 Realize jeita function by fangaijun at 2018/02/03 end */
-/* Huaqin add for ZQL1650-68 systme suspend 1 min run sw jeita by fangaijun at 2018/02/06 start */
-	struct delayed_work asus_batt_RTC_work;
-/* Huaqin add for ZQL1650-68 systme suspend 1 min run sw jeita by fangaijun at 2018/02/06 end */
-//Huaqin added by tangqingyong at 20180206 for USB alert start
-	struct iio_channel			*gpio12_vadc_chan;
-//Huaqin added by tangqingyong at 20180206 for USB alert end
-#endif
-
 	/* cached status */
 	int			voltage_min_uv;
 	int			voltage_max_uv;
@@ -342,9 +324,6 @@ struct smb_charger {
 	int			fake_capacity;
 	int			fake_batt_status;
 	bool			step_chg_enabled;
-#ifdef CONFIG_MACH_ASUS_SDM660
-	int			charging_enabled;
-#endif
 	bool			sw_jeita_enabled;
 	bool			is_hdc;
 	bool			chg_done;
@@ -401,17 +380,6 @@ struct smb_charger {
 	int			die_health;
 };
 
-#ifdef CONFIG_MACH_ASUS_SDM660
-/* Huaqin modify for ZQL1650-70 Identify Adapter ID by fangaijun at 2018/02/8 start */
-//ASUS BSP : Add gpio control struct +++
-struct gpio_control {
-	u32 ADC_SW_EN;
-	u32 ADCPWREN_PMI_GP1;
-};
-//ASUS BSP : Add gpio control struct ---
-/* Huaqin modify for ZQL1650-70 Identify Adapter ID by fangaijun at 2018/02/8 end */
-#endif
-
 int smblib_read(struct smb_charger *chg, u16 addr, u8 *val);
 int smblib_masked_write(struct smb_charger *chg, u16 addr, u8 mask, u8 val);
 int smblib_write(struct smb_charger *chg, u16 addr, u8 val);
@@ -461,12 +429,6 @@ irqreturn_t smblib_handle_wdog_bark(int irq, void *data);
 
 int smblib_get_prop_input_suspend(struct smb_charger *chg,
 				union power_supply_propval *val);
-#ifdef CONFIG_MACH_ASUS_SDM660
-/* Huaqin add for ZQL1650-189 by diganyun at 2018/02/01 start */
-int smblib_get_prop_charging_enabled(struct smb_charger *chg,
-				union power_supply_propval *val);
-/* Huaqin add for ZQL1650-189 by diganyun at 2018/02/01 end */
-#endif
 int smblib_get_prop_batt_present(struct smb_charger *chg,
 				union power_supply_propval *val);
 int smblib_get_prop_batt_capacity(struct smb_charger *chg,
@@ -487,12 +449,6 @@ int smblib_get_prop_input_current_limited(struct smb_charger *chg,
 				union power_supply_propval *val);
 int smblib_set_prop_input_suspend(struct smb_charger *chg,
 				const union power_supply_propval *val);
-#ifdef CONFIG_MACH_ASUS_SDM660
-/* Huaqin add for ZQL1650-189 by diganyun at 2018/02/01 start */
-int smblib_set_prop_charging_enabled(struct smb_charger *chg,
-				const union power_supply_propval *val);
-/* Huaqin add for ZQL1650-189 by diganyun at 2018/02/01 end */
-#endif
 int smblib_set_prop_batt_capacity(struct smb_charger *chg,
 				const union power_supply_propval *val);
 int smblib_set_prop_batt_status(struct smb_charger *chg,

@@ -24,7 +24,7 @@
 };
 
 &pm660_charger {
-	qcom,micro-usb;
+	qcom,use-extcon;
 	qcom,fcc-max-ua = <2000000>;
 	qcom,fv-max-uv = <4350000>;
 	qcom,usb-icl-ua = <2000000>;
@@ -33,11 +33,9 @@
 	qcom,wipower-max-uw = <0>;
 	qcom,otg-cl-ua = <1000000>;
 	qcom,boost-threshold-ua = <100000>;
-	qcom,aicl-rerun-period-s = <45>;
 	qcom,thermal-mitigation = <2000000 1800000 1500000 1200000 
                                1000000 700000 500000 300000>;
 	qcom,hvdcp-disable;
-    /delete-property/ qcom,hvdcp-autonomous;
 };
 
 &pm660_pdphy {
@@ -47,9 +45,12 @@
 &pm660_fg {
     status = "okay";
     
-    qcom,fg-cutoff-voltage = <3200>; 
+    qcom,fg-cutoff-voltage = <3400>;
     qcom,fg-empty-voltage = <2800>;
-    qcom,fg-vbatt-low-thr = <3300>;
+    qcom,fg-vbatt-low-thr = <3500>;
+    qcom,fg-esr-timer-awake = <96 96>;
+    qcom,fg-esr-timer-asleep = <160 256>;
+    qcom,fg-esr-timer-charging = <0 96>;
     qcom,fg-chg-term-current = <150>;
     qcom,fg-sys-term-current = <(-200)>;
     qcom,fg-recharge-voltage = <4150>;
@@ -57,6 +58,12 @@
     qcom,fg-auto-recharge-soc;
     qcom,fg-jeita-thresholds = <0 1 59 60>;
     qcom,fg-jeita-hyst-temp = <3>;
+    qcom,fg-esr-tight-filter-micro-pct = <20000>;
+    qcom,fg-esr-broad-filter-micro-pct = <25000>;
+    qcom,fg-esr-tight-lt-filter-micro-pct = <2000>;
+    qcom,fg-esr-broad-lt-filter-micro-pct = <2200>;
+    qcom,slope-limit-temp-threshold = <150>;
+    qcom,slope-limit-coeffs = <1 1 1 1>;
     qcom,hold-soc-while-full;
     qcom,linearize-soc;
     qcom,fg-force-load-profile;
@@ -74,7 +81,7 @@
 	qcom,vib-timeout-ms = <15000>;
 	qcom,vib-vtg-level-mV = <3100>;
 	qcom,mode = "manual"; */
-	
+
 	// led-qpnp-haptics
 	compatible = "qcom,qpnp-haptics";
 	reg = <0xc000 0x100>;
