@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2015-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -51,11 +50,7 @@
 #define WLAN_MODULE_NAME  "wlan"
 #endif
 
-#ifdef CLD_PM_QOS
-#define DISABLE_KRAIT_IDLE_PS_VAL	1
-#else
-#define DISABLE_KRAIT_IDLE_PS_VAL	PM_QOS_DEFAULT_VALUE
-#endif
+#define DISABLE_KRAIT_IDLE_PS_VAL      1
 
 #define SSR_MAX_FAIL_CNT 3
 static uint8_t re_init_fail_cnt, probe_fail_cnt;
@@ -614,6 +609,7 @@ static int __hdd_soc_recovery_reinit(struct device *dev,
 		cds_set_recovery_in_progress(false);
 
 	hdd_soc_load_unlock(dev);
+	hdd_start_complete(0);
 
 	return 0;
 
@@ -665,7 +661,6 @@ static int hdd_soc_recovery_reinit(struct device *dev,
 		return errno;
 
 	osif_psoc_sync_trans_stop(psoc_sync);
-	hdd_start_complete(0);
 
 	return 0;
 }

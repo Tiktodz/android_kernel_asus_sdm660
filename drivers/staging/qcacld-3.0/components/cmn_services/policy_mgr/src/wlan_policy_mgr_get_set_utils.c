@@ -2047,23 +2047,25 @@ uint32_t policy_mgr_get_mode_specific_conn_info(struct wlan_objmgr_psoc *psoc,
 		policy_mgr_err("Invalid Context");
 		return count;
 	}
+	if (!channel || !vdev_id) {
+		policy_mgr_err("Null pointer error");
+		return count;
+	}
 
 	count = policy_mgr_mode_specific_connection_count(
 				psoc, mode, list);
 	qdf_mutex_acquire(&pm_ctx->qdf_conc_list_lock);
 	if (count == 1) {
-		if (channel)
-			*channel = pm_conc_connection_list[list[index]].chan;
-		if (vdev_id)
-			*vdev_id = pm_conc_connection_list[list[index]].vdev_id;
+		*channel = pm_conc_connection_list[list[index]].chan;
+		*vdev_id =
+			pm_conc_connection_list[list[index]].vdev_id;
 	} else {
 		for (index = 0; index < count; index++) {
 			channel[index] =
 			pm_conc_connection_list[list[index]].chan;
 
-			if (vdev_id)
-				vdev_id[index] =
-				pm_conc_connection_list[list[index]].vdev_id;
+			vdev_id[index] =
+			pm_conc_connection_list[list[index]].vdev_id;
 		}
 	}
 	qdf_mutex_release(&pm_ctx->qdf_conc_list_lock);

@@ -9928,9 +9928,6 @@ static void hdd_init_channel_avoidance(struct hdd_context *hdd_ctx)
 	unsafe_channel_count = QDF_MIN((uint16_t)hdd_ctx->unsafe_channel_count,
 				       (uint16_t)NUM_CHANNELS);
 
-	if (!unsafe_channel_count)
-		return;
-	
 	for (index = 0; index < unsafe_channel_count; index++) {
 		hdd_debug("channel %d is not safe",
 		       hdd_ctx->unsafe_channel_list[index]);
@@ -14323,8 +14320,6 @@ static void __hdd_inform_wifi_off(void)
 	ucfg_blm_wifi_off(hdd_ctx->pdev);
 }
 
-static int hdd_driver_load(void);
-
 static void hdd_inform_wifi_off(void)
 {
 	int ret;
@@ -15261,8 +15256,7 @@ pld_deinit:
 	QDF_BUG(QDF_IS_STATUS_SUCCESS(status));
 
 	osif_driver_sync_unregister();
-	if (driver_sync)
-		osif_driver_sync_wait_for_ops(driver_sync);
+	osif_driver_sync_wait_for_ops(driver_sync);
 
 	hdd_driver_mode_change_unregister();
 	pld_deinit();
@@ -15278,10 +15272,8 @@ comp_deinit:
 hdd_deinit:
 	hdd_deinit();
 trans_stop:
-	if (driver_sync) {
-		osif_driver_sync_trans_stop(driver_sync);
-		osif_driver_sync_destroy(driver_sync);
-	}
+	osif_driver_sync_trans_stop(driver_sync);
+	osif_driver_sync_destroy(driver_sync);
 sync_deinit:
 	osif_sync_deinit();
 	hdd_qdf_deinit();
@@ -15385,7 +15377,7 @@ static void hdd_driver_unload(void)
  *
  * Return: 0 for success, errno on failure
  */
-static int __init hdd_module_init(void)
+static int hdd_module_init(void)
 {
 	int ret;
 
@@ -16417,11 +16409,6 @@ int hdd_get_rssi_snr_by_bssid(struct hdd_adapter *adapter, const uint8_t *bssid,
 
 	roam_profile = hdd_roam_profile(adapter);
 	mac_handle = hdd_adapter_get_mac_handle(adapter);
-	if (!mac_handle) {
-		hdd_err("mac context NULL");
-		return -EINVAL;
-	}
-
 	status = sme_get_rssi_snr_by_bssid(mac_handle,
 					   roam_profile, bssid, rssi, snr);
 	if (QDF_STATUS_SUCCESS != status) {
