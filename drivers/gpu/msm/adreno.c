@@ -28,7 +28,7 @@
 /* Include the master list of GPU cores that are supported */
 #include "adreno-gpulist.h"
 
-unsigned int is_gpu_overclocked = 0;
+unsigned int is_gpu_overclocked = 1;
 
 static int __init read_gpu_overclock_state(char *s)
 {
