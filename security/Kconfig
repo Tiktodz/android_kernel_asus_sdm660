@@ -233,13 +233,12 @@ config STATIC_USERMODEHELPER_PATH
 	  If you wish for all usermode helper programs to be disabled,
 	  specify an empty string here (i.e. "").
 
-source "security/selinux/Kconfig"
-source "security/smack/Kconfig"
-source "security/tomoyo/Kconfig"
-source "security/apparmor/Kconfig"
-source "security/loadpin/Kconfig"
-source "security/yama/Kconfig"
-source "security/lockdown/Kconfig"
+source security/selinux/Kconfig
+source security/smack/Kconfig
+source security/tomoyo/Kconfig
+source security/apparmor/Kconfig
+source security/loadpin/Kconfig
+source security/yama/Kconfig
 
 source security/integrity/Kconfig
 
@@ -284,11 +283,7 @@ source "security/Kconfig.hardening"
 
 config LSM
 	string "Ordered list of enabled LSMs"
-	default "lockdown,yama,loadpin,integrity,smack,selinux,tomoyo,apparmor" if DEFAULT_SECURITY_SMACK
-	default "lockdown,yama,loadpin,integrity,apparmor,selinux,smack,tomoyo" if DEFAULT_SECURITY_APPARMOR
-	default "lockdown,yama,loadpin,integrity,tomoyo" if DEFAULT_SECURITY_TOMOYO
-	default "lockdown,yama,loadpin,integrity" if DEFAULT_SECURITY_DAC
-	default "lockdown,yama,loadpin,integrity,selinux,smack,tomoyo,apparmor"
+	default "integrity"
 	help
 	  A comma-separated list of LSMs, in initialization order.
 	  Any LSMs left off this list will be ignored.
