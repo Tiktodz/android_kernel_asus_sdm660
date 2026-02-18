@@ -304,8 +304,7 @@ static int kgsl_reclaim_callback(struct notifier_block *nb,
 			memdesc->priv |= KGSL_MEMDESC_RECLAIMED;
 
 			ret = reclaim_address_space
-				(memdesc->shmem_filp->f_mapping,
-				data, memdesc->vma);
+				(memdesc->shmem_filp->f_mapping, data);
 
 			mapping_set_unevictable(memdesc->shmem_filp->f_mapping);
 			memdesc->reclaimed_page_count += memdesc->page_count;
