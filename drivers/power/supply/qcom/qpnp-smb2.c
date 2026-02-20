@@ -21,21 +21,6 @@
 #include "storm-watch.h"
 #include <linux/pmic-voter.h>
 
-#ifdef CONFIG_MACH_ASUS_SDM660
-#include <linux/of_gpio.h>
-#include <linux/pm_wakeup.h>
-#include <linux/uaccess.h>
-#include <linux/proc_fs.h>
-#include <asm-generic/errno-base.h>
-#define CHARGER_TAG "[BAT][CHG]"
-#define ERROR_TAG "[ERR]"
-
-#define printk(...)  printk(KERN_ERR CHARGER_TAG __VA_ARGS__)
-#define CHG_DBG(...)  printk(KERN_ERR CHARGER_TAG __VA_ARGS__)
-#define CHG_DBG_E(...)  printk(KERN_ERR CHARGER_TAG ERROR_TAG __VA_ARGS__)
-#include <linux/iio/consumer.h>
-#endif
-
 #define SMB2_DEFAULT_WPWR_UW	8000000
 
 static struct smb_params v1_params = {
@@ -187,29 +172,9 @@ struct smb2 {
 	bool			bad_part;
 };
 
-#ifdef CONFIG_MACH_ASUS_SDM660
-/* Huaqin add for ZQL1650-68 Realize jeita function by fangaijun at 2018/02/03 start */
-struct smb_charger *smbchg_dev;
-/* Huaqin add for ZQL1650-68 systme suspend 1 min run sw jeita by fangaijun at 2018/02/06 start */
-struct timespec last_jeita_time;
-/* Huaqin add for ZQL1650-68 systme suspend 1 min run sw jeita by fangaijun at 2018/02/06 end */
-struct wakeup_source *asus_chg_lock;
-/* Huaqin add for ZQL1650-68 Realize jeita function by fangaijun at 2018/02/03 end */
-/* Huaqin add for ZQL1650-68 systme suspend 1 min run sw jeita by fangaijun at 2018/02/06 start */
-extern void smblib_asus_monitor_start(struct smb_charger *chg, int time);
-extern bool asus_get_prop_usb_present(struct smb_charger *chg);
-extern void asus_smblib_stay_awake(struct smb_charger *chg);
-extern void asus_smblib_relax(struct smb_charger *chg);
-/* Huaqin add for ZQL1650-68 systme suspend 1 min run sw jeita by fangaijun at 2018/02/06 end */
-/* Huaqin modify for ZQL1650-647 add otg debug info by diganyun at 2018/03/16 start*/
-#ifdef HQ_BUILD_FACTORY
-static int __debug_mask = 0x10;
-#else
 static int __debug_mask;
-#endif
-#endif /* CONFIG_MACH_ASUS_SDM660 */
 
-static int __weak_chg_icl_ua = 900000;
+static int __weak_chg_icl_ua = 500000;
 static ssize_t weak_chg_icl_ua_show(struct device *dev, struct device_attribute
 				     *attr, char *buf)
 {
@@ -386,12 +351,6 @@ static int smb2_parse_dt(struct smb2 *chip)
 			return rc;
 		}
 	}
-
-#ifdef CONFIG_MACH_ASUS_SDM660 /* USB alert */
-	if(of_find_property(node,"qcom,chg-alert-vadc",NULL)){
-		dev_err(chg->dev,"get chg_alert vadc good rc = %d \n",rc);
-	}
-#endif
 
 	of_property_read_u32(node, "qcom,float-option", &chip->dt.float_option);
 	if (chip->dt.float_option < 0 || chip->dt.float_option > 4) {
@@ -1078,6 +1037,7 @@ static int smb2_init_dc_psy(struct smb2 *chip)
  *************************/
 
 static enum power_supply_property smb2_batt_props[] = {
+	POWER_SUPPLY_PROP_CHARGING_ENABLED,
 	POWER_SUPPLY_PROP_INPUT_SUSPEND,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -1131,6 +1091,9 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		rc = smblib_get_prop_batt_present(chg, val);
+		break;
+	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
+		val->intval = !get_effective_result(chg->chg_disable_votable);
 		break;
 	case POWER_SUPPLY_PROP_INPUT_SUSPEND:
 		rc = smblib_get_prop_input_suspend(chg, val);
@@ -1193,7 +1156,11 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 					      FG_ESR_VOTER);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
+#ifdef CONFIG_MACH_ASUS_SDM660
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LIPO;
+#else
+		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+#endif
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_DONE:
 		rc = smblib_get_prop_batt_charge_done(chg, val);
@@ -1258,6 +1225,9 @@ static int smb2_batt_set_prop(struct power_supply *psy,
 	switch (prop) {
 	case POWER_SUPPLY_PROP_STATUS:
 		rc = smblib_set_prop_batt_status(chg, val);
+		break;
+	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
+		vote(chg->chg_disable_votable, USER_VOTER, !!!val->intval, 0);
 		break;
 	case POWER_SUPPLY_PROP_INPUT_SUSPEND:
 		rc = smblib_set_prop_input_suspend(chg, val);
@@ -1348,6 +1318,7 @@ static int smb2_batt_prop_is_writeable(struct power_supply *psy,
 {
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
+	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
 	case POWER_SUPPLY_PROP_INPUT_SUSPEND:
 	case POWER_SUPPLY_PROP_SYSTEM_TEMP_LEVEL:
 	case POWER_SUPPLY_PROP_CAPACITY:
@@ -1358,8 +1329,6 @@ static int smb2_batt_prop_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STEP_CHARGING_ENABLED:
 	case POWER_SUPPLY_PROP_SW_JEITA_ENABLED:
 	case POWER_SUPPLY_PROP_DIE_HEALTH:
-	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
-	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
 		return 1;
 	default:
 		break;
@@ -1756,15 +1725,11 @@ static int smb2_init_hw(struct smb2 *chip)
 			chip->dt.no_pd, 0);
 	/*
 	 * AICL configuration:
-	 * start from min, AICL rerun enable and AICL ADC disable
+	 * start from min and AICL ADC disable
 	 */
 	rc = smblib_masked_write(chg, USBIN_AICL_OPTIONS_CFG_REG,
-			SUSPEND_ON_COLLAPSE_USBIN_BIT
-			| USBIN_AICL_START_AT_MAX_BIT
-			| USBIN_AICL_ADC_EN_BIT
-			| USBIN_AICL_RERUN_EN_BIT
-			| USBIN_AICL_HDC_EN_BIT,
-			USBIN_AICL_RERUN_EN_BIT);
+			USBIN_AICL_START_AT_MAX_BIT
+				| USBIN_AICL_ADC_EN_BIT, 0);
 	if (rc < 0) {
 		dev_err(chg->dev, "Couldn't configure AICL rc=%d\n", rc);
 		return rc;
@@ -2492,17 +2457,11 @@ static int smb2_probe(struct platform_device *pdev)
 {
 	struct smb2 *chip;
 	struct smb_charger *chg;
-#ifdef CONFIG_MACH_ASUS_SDM660
-	u8 HVDVP_reg;
-#endif
 	int rc = 0;
 	union power_supply_propval val;
 	int usb_present, batt_present, batt_health, batt_charge_type;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
-#ifdef CONFIG_MACH_ASUS_SDM660
-	printk("enter smb2_probe\n");
-#endif
 	if (!chip)
 		return -ENOMEM;
 
@@ -2516,14 +2475,6 @@ static int smb2_probe(struct platform_device *pdev)
 	chg->irq_info = smb2_irqs;
 	chg->die_health = -EINVAL;
 	chg->name = "PMI";
-	
-#ifdef CONFIG_MACH_ASUS_SDM660
-/* Huaqin add for ZQL1650-68 Realize jeita function by fangaijun at 2018/02/03 start */
-	asus_chg_lock = wakeup_source_register(NULL, "asus_chg_lock");
-	smbchg_dev = chg;			//ASUS BSP add globe device struct +++
-/* Huaqin add for ZQL1650-68 Realize jeita function by fangaijun at 2018/02/03 end */
-#endif
-	
 	chg->audio_headset_drp_wait_ms = &__audio_headset_drp_wait_ms;
 
 	chg->regmap = dev_get_regmap(chg->dev->parent, NULL);
@@ -2677,16 +2628,6 @@ static int smb2_probe(struct platform_device *pdev)
 
 	device_init_wakeup(chg->dev, true);
 
-#ifdef CONFIG_MACH_ASUS_SDM660
-/* Huaqin add for ZQL1650  solve High voltage charger  cannot charge by fangaijun at 2018/3/15 start */
-	rc = smblib_read(smbchg_dev, USBIN_OPTIONS_1_CFG_REG, &HVDVP_reg);
-	rc = smblib_masked_write(smbchg_dev, USBIN_OPTIONS_1_CFG_REG, HVDCP_EN_BIT, 0x0);
-	rc = smblib_read(smbchg_dev, USBIN_OPTIONS_1_CFG_REG, &HVDVP_reg);
-	if (rc < 0)
-		CHG_DBG_E("%s: Failed to set USBIN_OPTIONS_1_CFG_REG\n", __func__);
-/* Huaqin add for ZQL1650  solve High voltage charger  cannot charge by fangaijun at 2018/3/15 end */
-#endif
-
 	pr_info("QPNP SMB2 probed successfully usb:present=%d type=%d batt:present = %d health = %d charge = %d\n",
 		usb_present, chg->real_charger_type,
 		batt_present, batt_health, batt_charge_type);
@@ -2714,35 +2655,6 @@ cleanup:
 	platform_set_drvdata(pdev, NULL);
 	return rc;
 }
-
-#ifdef CONFIG_MACH_ASUS_SDM660
-/* Huaqin add for ZQL1650-68 systme suspend 1 min run sw jeita by fangaijun at 2018/02/06 start */
-#define JEITA_MINIMUM_INTERVAL (30)
-static int smb2_resume(struct device *dev)
-{
-	struct timespec mtNow;
-	int nextJEITAinterval;
-
-	if (!asus_get_prop_usb_present(smbchg_dev)) {
-		return 0;
-	}
-	asus_smblib_stay_awake(smbchg_dev);
-	mtNow = current_kernel_time();
-
-	/*BSP Austin_Tseng: if next JEITA time less than 30s, do JEITA
-			(next JEITA time = last JEITA time + 60s)*/
-	nextJEITAinterval = 60 - (mtNow.tv_sec - last_jeita_time.tv_sec);
-	if (nextJEITAinterval <= JEITA_MINIMUM_INTERVAL) {
-		smblib_asus_monitor_start(smbchg_dev, 0);
-		cancel_delayed_work(&smbchg_dev->asus_batt_RTC_work);
-	} else {
-		smblib_asus_monitor_start(smbchg_dev, nextJEITAinterval * 1000);
-		asus_smblib_relax(smbchg_dev);
-	}
-	return 0;
-}
-/* Huaqin add for ZQL1650-68 systme suspend 1 min run sw jeita by fangaijun at 2018/02/06 end */
-#endif
 
 static int smb2_remove(struct platform_device *pdev)
 {
@@ -2783,14 +2695,6 @@ static void smb2_shutdown(struct platform_device *pdev)
 				 AUTO_SRC_DETECT_BIT, AUTO_SRC_DETECT_BIT);
 }
 
-#ifdef CONFIG_MACH_ASUS_SDM660
-/* Huaqin add for ZQL1650-68 systme suspend 1 min run sw jeita by fangaijun at 2018/02/06 start */
-static const struct dev_pm_ops smb2_pm_ops = {
-	.resume		= smb2_resume,
-};
-/* Huaqin add for ZQL1650-68 systme suspend 1 min run sw jeita by fangaijun at 2018/02/06 end */
-#endif
-
 static const struct of_device_id match_table[] = {
 	{ .compatible = "qcom,qpnp-smb2", },
 	{ },
@@ -2800,9 +2704,6 @@ static struct platform_driver smb2_driver = {
 	.driver		= {
 		.name		= "qcom,qpnp-smb2",
 		.of_match_table	= match_table,
-#ifdef CONFIG_MACH_ASUS_SDM660
-		.pm			= &smb2_pm_ops,
-#endif
 	},
 	.probe		= smb2_probe,
 	.remove		= smb2_remove,
