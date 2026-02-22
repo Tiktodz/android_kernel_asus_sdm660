@@ -368,10 +368,10 @@
 #define USB2_MAX_CURRENT_MA			500
 #define USB3_MIN_CURRENT_MA			150
 #define USB3_MAX_CURRENT_MA			900
-#define DCP_MAX_CURRENT_MA			1500
+#define DCP_MAX_CURRENT_MA			2000
 #define SMB1351_IRQ_REG_COUNT			8
 #define SMB1351_CHG_PRE_MIN_MA			100
-#define SMB1351_CHG_FAST_MIN_MA			1000
+#define SMB1351_CHG_FAST_MIN_MA			1500
 #define SMB1351_CHG_FAST_MAX_MA			4500
 #define SMB1351_CHG_PRE_SHIFT			5
 #define SMB1351_CHG_FAST_SHIFT			4
@@ -738,7 +738,7 @@ static int smb1351_fastchg_current_set(struct smb1351_charger *chip,
 	}
 
 	/*
-	 * fast chg current could not support less than 1000mA
+	 * fast chg current could not support less than 1500mA
 	 * use pre chg to instead for the parallel charging
 	 */
 	if (fastchg_current < SMB1351_CHG_FAST_MIN_MA) {
@@ -1290,7 +1290,7 @@ static int smb1351_set_usb_chg_current(struct smb1351_charger *chip,
 		return 0;
 	}
 
-	/* set suspend bit when urrent_ma <= 2 */
+	/* set suspend bit when current_ma <= 2 */
 	if (current_ma <= SUSPEND_CURRENT_MA) {
 		smb1351_usb_suspend(chip, CURRENT, true);
 		pr_debug("USB suspend\n");
@@ -1556,6 +1556,7 @@ static enum power_supply_property smb1351_parallel_properties[] = {
 	POWER_SUPPLY_PROP_PARALLEL_MODE,
 	POWER_SUPPLY_PROP_INPUT_SUSPEND,
 	POWER_SUPPLY_PROP_PARALLEL_BATFET_MODE,
+	POWER_SUPPLY_PROP_MODEL_NAME,
 };
 
 static int smb1351_parallel_set_chg_suspend(struct smb1351_charger *chip,
@@ -1715,7 +1716,7 @@ static int smb1351_parallel_set_property(struct power_supply *psy,
 				       enum power_supply_property prop,
 				       const union power_supply_propval *val)
 {
-	int rc = 0, index;
+	int rc = 0, index, current_ma;
 	struct smb1351_charger *chip = power_supply_get_drvdata(psy);
 
 	switch (prop) {
@@ -1738,8 +1739,13 @@ static int smb1351_parallel_set_property(struct power_supply *psy,
 					chip->target_fastchg_current_max_ma);
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		index = smb1351_get_closest_usb_setpoint(val->intval / 1000);
-		chip->usb_psy_ma = usb_chg_current[index];
+		current_ma = val->intval / 1000;
+		if (current_ma > SUSPEND_CURRENT_MA) {
+			index = smb1351_get_closest_usb_setpoint(current_ma);
+			chip->usb_psy_ma = usb_chg_current[index];
+		} else {
+			chip->usb_psy_ma = current_ma;
+		}
 		if (!chip->parallel_charger_suspended)
 			rc = smb1351_set_usb_chg_current(chip,
 						chip->usb_psy_ma);
@@ -1747,7 +1753,7 @@ static int smb1351_parallel_set_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		chip->vfloat_mv = val->intval / 1000;
 		if (!chip->parallel_charger_suspended)
-			rc = smb1351_float_voltage_set(chip, val->intval);
+			rc = smb1351_float_voltage_set(chip, chip->vfloat_mv);
 		break;
 	default:
 		return -EINVAL;
@@ -1826,6 +1832,9 @@ static int smb1351_parallel_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_PARALLEL_BATFET_MODE:
 		val->intval = chip->pl_batfet_mode;
+		break;
+	case POWER_SUPPLY_PROP_MODEL_NAME:
+		val->strval = "smb1351";
 		break;
 	default:
 		return -EINVAL;
@@ -3036,6 +3045,14 @@ static int smb1351_charger_remove(struct i2c_client *client)
 	return 0;
 }
 
+static void smb1351_charger_shutdown(struct i2c_client *client)
+{
+	struct smb1351_charger *chip = i2c_get_clientdata(client);
+
+	if (!chip->parallel_charger_suspended)
+		smb1351_usb_suspend(chip, USER, true);
+}
+
 static int smb1351_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -3114,6 +3131,7 @@ static struct i2c_driver smb1351_charger_driver = {
 	},
 	.probe		= smb1351_charger_probe,
 	.remove		= smb1351_charger_remove,
+	.shutdown	= smb1351_charger_shutdown,
 	.id_table	= smb1351_charger_id,
 };
 
