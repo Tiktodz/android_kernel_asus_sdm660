@@ -251,24 +251,27 @@
 
 		CPU_COST_0: core-cost0 {
 			busy-cost-data = <
-				 633600	 47
-				 902400	 75
-				1113600	100
-				1401600	136
-				1536000	174
-				1747200	214
-				1843200	236
+				633600	41
+				902400	70
+				1113600	83
+				1401600	146
+				1536000	158
+				1612800 183
+				1747200	228
+				1843200	285
 			>;
 		};
 
 		CPU_COST_1: core-cost1 {
 			busy-cost-data = <
-				1113600	270
-				1401600	350
-				1747200	513
-				1958400	670
-				2150400	803
-				2208000	979
+				1113600	307
+				1401600	485
+				1747200	857
+				1804800	883
+				1958400	1222
+				2150400	1592
+				2208000	1632
+				2457600	2080
 			>;
 		};
 	};
@@ -521,7 +524,7 @@
 		interrupt-controller;
 		#interrupt-cells = <4>;
 		cell-index = <0>;
-		status = "okay";
+		status = "ok";
 	};
 
 		mem_dump {
@@ -1068,8 +1071,9 @@
 			< 266000000 2>,  /* LowSVS */
 			< 370000000 3>,  /* SVS    */
 			< 465000000 4>,  /* SVS_L1 */
-			< 585000000 5>,  /* NOM    */
+			< 588000000 5>,  /* NOM    */
 			< 647000000 6>,  /* NOM_L1 */
+			< 700000000 7>,  /* TURBO */
 			< 750000000 7>;  /* TURBO  */
 		#clock-cells = <1>;
 		#reset-cells = <1>;
@@ -1187,7 +1191,7 @@
 			qcom,core-dev-table =
 				< 902400 MHZ_TO_MBPS(200, 4) >,
 				< 1401600 MHZ_TO_MBPS(547, 4) >,
-				< 1843200 MHZ_TO_MBPS(1017, 4) >;
+				< 1881600 MHZ_TO_MBPS(1017, 4) >;
 		};
 
 		cpu0_computemon: qcom,cpu0-computemon {
@@ -1197,7 +1201,7 @@
 			qcom,core-dev-table =
 				< 633600 MHZ_TO_MBPS(200, 4) >,
 				< 1401600 MHZ_TO_MBPS(412, 4) >,
-				< 1843200 MHZ_TO_MBPS(768, 4) >;
+				< 1881600 MHZ_TO_MBPS(768, 4) >;
 		};
 	};
 
@@ -2122,7 +2126,7 @@
 		qcom,proxy-timeout-ms = <100>;
 		qcom,firmware-name = "venus";
 		memory-region = <&venus_fw_mem>;
-		status = "okay";
+		status = "ok";
 	};
 
 	qcom,icnss@18800000 {
@@ -2206,7 +2210,7 @@
 		/* GPIO output to lpass */
 		qcom,smem-states = <&adsp_smp2p_out 0>;
 		qcom,smem-state-names = "qcom,force-stop";
-		status = "okay";
+		status = "ok";
 	};
 
 	qcom,turing@1a300000 {
@@ -2247,7 +2251,7 @@
 		/* Outputs to turing */
 		qcom,smem-states = <&cdsp_smp2p_out 0>;
 		qcom,smem-state-names = "qcom,force-stop";
-		status = "okay";
+		status = "ok";
 	};
 
 	pil_modem: qcom,mss@4080000 {
@@ -2313,7 +2317,7 @@
 		qcom,smem-states = <&modem_smp2p_out 0>;
 		qcom,smem-state-names = "qcom,force-stop";
 
-		status = "okay";
+		status = "ok";
 		qcom,mba-mem@0 {
 			compatible = "qcom,pil-mba-mem";
 			memory-region = <&pil_mba_mem>;
@@ -2742,11 +2746,11 @@
 #include "sdm660-thermal.dtsi"
 
 &gdsc_usb30 {
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_ufs {
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_bimc_smmu {
@@ -2755,54 +2759,54 @@
 		 <&clock_mmss MMSS_BIMC_SMMU_AHB_CLK>;
 	proxy-supply = <&gdsc_bimc_smmu>;
 	qcom,proxy-consumer-enable;
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_hlos1_vote_lpass_adsp {
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_hlos1_vote_turing_adsp {
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_hlos2_vote_turing_adsp {
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_venus {
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_venus_core0 {
 	qcom,support-hw-trigger;
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_camss_top {
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_vfe0 {
 	parent-supply = <&gdsc_camss_top>;
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_vfe1 {
 	parent-supply = <&gdsc_camss_top>;
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_cpp {
 	parent-supply = <&gdsc_camss_top>;
 	qcom,support-hw-trigger;
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_mdss {
 	proxy-supply = <&gdsc_mdss>;
 	qcom,proxy-consumer-enable;
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_gpu_gx {
@@ -2810,11 +2814,11 @@
 	clocks = <&clock_gfx GFX3D_CLK_SRC>;
 	qcom,force-enable-root-clk;
 	parent-supply = <&gfx_vreg_corner>;
-	status = "okay";
+	status = "ok";
 };
 
 &gdsc_gpu_cx {
-	status = "okay";
+	status = "ok";
 };
 
 
@@ -2885,7 +2889,7 @@
 };
 
 &blsp2_uart1_hs {
-	status = "okay";
+	status = "ok";
 };
 
 &pm660_adc_tm {

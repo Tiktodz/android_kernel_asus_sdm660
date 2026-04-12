@@ -28,22 +28,6 @@
 	};
 };
 
-&cpu0_memlat_cpugrp {
-	qcom,cpu0-cpu-ddr-latmon {
-		qcom,core-dev-table =
-			< 902400 MHZ_TO_MBPS(200, 4) >,
-			< 1401600 MHZ_TO_MBPS(547, 4) >,
-			< 1612800 MHZ_TO_MBPS(1017, 4) >;
-	};
-
-	qcom,cpu0-computemon {
-		qcom,core-dev-table =
-			< 633600 MHZ_TO_MBPS(200, 4) >,
-			< 1401600 MHZ_TO_MBPS(412, 4) >,
-			< 1612800 MHZ_TO_MBPS(768, 4) >;
-	};
-};
-
 &cpu4_memlat_cpugrp {
 	qcom,cpu4-cpu-ddr-latmon {
 		qcom,core-dev-table =
@@ -85,128 +69,10 @@
 		/delete-node/ qcom,msm_fastrpc_compute_cb12;
 		/delete-node/ qcom,msm_fastrpc_compute_cb13;
 	};
-
-	qmi-tmd-devices {
-		/delete-node/ cdsp;
-	};
-
-	rpm-glink {
-		qcom,rpm_glink_ssr {
-			qcom,notify-edges = <&glink_modem>,
-						<&glink_adsp>;
-		};
-	};
-
-	qcom,glink {
-		modem {
-			qcom,modem_glink_ssr {
-				qcom,notify-edges = <&glink_adsp>;
-			};
-		};
-
-		adsp {
-			qcom,adsp_glink_ssr {
-				qcom,notify-edges = <&glink_modem>;
-			};
-		};
-
-		/delete-node/ cdsp;
-	};
-
-	/delete-node/ qcom,smp2p-cdsp;
-	/delete-node/ qcom,smp2p_interrupt_rdbg_5_in;
-	/delete-node/ qcom,smp2p_interrupt_rdbg_5_out;
-};
-
-&thermal_zones {
-	/delete-node/ cdsp-usr;
 };
 
 /* GPU overrides */
-&clock_gfx {
-	qcom,gfxfreq-corner =
-			< 0         0>,
-			< 160000000 1>,  /* MinSVS */
-			< 266000000 2>,  /* LowSVS */
-			< 370000000 3>,  /* SVS    */
-			< 430000000 4>,  /* SVS_L1 */
-			< 585000000 5>,  /* NOM    */
-			< 647000000 6>,  /* NOM_L1 */
-			< 750000000 7>;  /* TURBO  */
-};
-
-&gfx_vreg_corner {
-	qcom,corner-frequencies =
-		<160000000 266000000 370000000
-		 430000000 585000000 647000000
-		 750000000>;
-};
-
 &msm_gpu {
 	/* Update GPU chip ID*/
 	qcom,chipid = <0x05000900>;
-};
-
-/* EM overrides */
-&CPU0 {
-	capacity-dmips-mhz = <615>;
-	efficiency = <615>;
-};
-
-&CPU1 {
-	capacity-dmips-mhz = <615>;
-	efficiency = <615>;
-};
-
-&CPU2 {
-	capacity-dmips-mhz = <615>;
-	efficiency = <615>;
-};
-
-&CPU3 {
-	capacity-dmips-mhz = <615>;
-	efficiency = <615>;
-};
-
-&CPU4 {
-	capacity-dmips-mhz = <1024>;
-	efficiency = <1024>;
-};
-
-&CPU5 {
-	capacity-dmips-mhz = <1024>;
-	efficiency = <1024>;
-};
-
-&CPU6 {
-	capacity-dmips-mhz = <1024>;
-	efficiency = <1024>;
-};
-
-&CPU7 {
-	capacity-dmips-mhz = <1024>;
-	efficiency = <1024>;
-};
-
-&CPU_COST_0 {
-	busy-cost-data = <
-		 633600  43
-		 902400  62
-		1113600  80
-		1401600 123
-		1536000 144
-		1612800 160
-		1843200	183
-	>;
-};
-
-&CPU_COST_1 {
-	busy-cost-data = <
-		1113600 232
-		1401600 326
-		1747200 488
-		1804800 510
-		2150400	560
-		2208000	630
-	>;
 };

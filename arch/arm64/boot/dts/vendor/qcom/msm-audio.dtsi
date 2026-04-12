@@ -670,8 +670,6 @@
 			qcom,smmu-version = <2>;
 			qcom,smmu-enabled;
 			iommus = <&lpass_q6_smmu 1>;
-			qcom,iommu-dma-addr-pool = <0x10000000 0x10000000>;
-			qcom,smmu-sid-mask = /bits/ 64 <0xf>;
 		};
 	};
 

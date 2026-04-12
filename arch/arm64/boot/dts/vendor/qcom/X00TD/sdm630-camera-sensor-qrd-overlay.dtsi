@@ -11,6 +11,34 @@
  * GNU General Public License for more details.
  */
 
+/* ------------------------------------------------------------------ */
+/* Pinctrl: добавляем GPIO для cam_sensor_eldo3 и cam_sensor_eldo4    */
+/* gpio3 — VDIG фронтальной камеры (front)                            */
+/* gpio4 — VDIG задней камеры глубины (depth/rear2)                   */
+/* ------------------------------------------------------------------ */
+&tlmm {
+	cam_sensor_eldo3 {
+		cam_sensor_eldo3_default: cam_sensor_eldo3_default {
+			pins = "gpio3";
+			function = "normal";
+			output-high;
+			bias-disable;
+		};
+	};
+
+	cam_sensor_eldo4 {
+		cam_sensor_eldo4_default: cam_sensor_eldo4_default {
+			pins = "gpio4";
+			function = "normal";
+			output-low;
+			bias-disable;
+		};
+	};
+};
+
+/* ------------------------------------------------------------------ */
+/* SoC: flash, регуляторы                                             */
+/* ------------------------------------------------------------------ */
 &soc {
 	/delete-node/ qcom,camera-flash;
 	/delete-node/ cam_vaf_gpio_regulator;
@@ -45,12 +73,15 @@
 	};
 };
 
+/* ------------------------------------------------------------------ */
+/* CCI: actuator, eeprom, camera nodes                                */
+/* ------------------------------------------------------------------ */
 &cci {
 	/delete-node/ qcom,actuator@1;
 	/delete-node/ qcom,ois@0;
 	/delete-node/ qcom,eeprom@2;
 
-	/* Define actuator0 directly (no vreg needed) */
+	/* Actuator для задней основной камеры */
 	actuator0: qcom,actuator@0 {
 		cell-index = <0>;
 		reg = <0x0>;
@@ -59,7 +90,7 @@
 		status = "ok";
 	};
 
-	/* Define eeprom0 with correct supplies */
+	/* EEPROM задней основной камеры */
 	eeprom0: qcom,eeprom@0 {
 		cell-index = <0>;
 		reg = <0x0>;
@@ -93,7 +124,7 @@
 		status = "ok";
 	};
 
-	/* Define eeprom1 with correct supplies */
+	/* EEPROM фронтальной камеры */
 	eeprom1: qcom,eeprom@1 {
 		cell-index = <1>;
 		reg = <0x1>;
@@ -130,7 +161,7 @@
 		status = "ok";
 	};
 
-	/* Camera 0 — Rear main */
+	/* Camera 0 — Rear main (задняя основная) */
 	qcom,camera@0 {
 		/delete-property/ qcom,special-support-sensors;
 		/delete-property/ qcom,ois-src;
@@ -152,7 +183,7 @@
 					"CAM_VDIG0";
 	};
 
-	/* Camera 1 — Front */
+	/* Camera 1 — Front (фронтальная) */
 	qcom,camera@1 {
 		qcom,csiphy-sd-index = <2>;
 		qcom,csid-sd-index = <2>;
@@ -161,9 +192,11 @@
 
 		qcom,led-flash-src = <&led_flash1>;
 		cam_vdig-supply = <&pm660_s5>;
+		qcom,cam-vreg-name = "cam_vio", "cam_vana", "cam_vdig";
 		qcom,cam-vreg-min-voltage = <1780000 0 1224000>;
 		qcom,cam-vreg-max-voltage = <1950000 0 1350000>;
 		qcom,cam-vreg-op-mode = <105000 0 105000>;
+		pinctrl-names = "cam_default", "cam_suspend";
 		pinctrl-0 = <&cam_sensor_mclk1_active
 				&cam_sensor_front_active
 				&cam_sensor_eldo3_default>;
@@ -181,14 +214,23 @@
 		qcom,sensor-position = <1>;
 		clocks = <&clock_mmss MCLK1_CLK_SRC>,
 			<&clock_mmss MMSS_CAMSS_MCLK1_CLK>;
+		clock-names = "cam_src_clk", "cam_clk";
+		qcom,clock-rates = <24000000 0>;
 	};
 
-	/* Camera 2 — Rear depth */
+	/* Camera 2 — Rear depth (задняя камера глубины) */
 	qcom,camera@2 {
 		qcom,csiphy-sd-index = <1>;
 		qcom,csid-sd-index = <1>;
 		qcom,eeprom-src = <&eeprom0>;
+		cam_vio-supply = <&pm660_l11>;
+		cam_vana-supply = <&cam_avdd_gpio_regulator>;
+		cam_vdig-supply = <&pm660_s5>;
+		qcom,cam-vreg-name = "cam_vio", "cam_vana", "cam_vdig";
 		qcom,cam-vreg-min-voltage = <1780000 0 1224000>;
+		qcom,cam-vreg-max-voltage = <1950000 0 1350000>;
+		qcom,cam-vreg-op-mode = <105000 0 105000>;
+		pinctrl-names = "cam_default", "cam_suspend";
 		pinctrl-0 = <&cam_sensor_mclk3_active
 				&cam_sensor_rear2_active
 				&cam_sensor_eldo4_default>;
@@ -197,11 +239,17 @@
 		gpios = <&tlmm 35 0>,
 			<&tlmm 48 0>,
 			<&pm660l_gpios 4 0>;
+		qcom,gpio-reset = <1>;
+		qcom,gpio-vdig = <2>;
+		qcom,gpio-req-tbl-num = <0 1 2>;
+		qcom,gpio-req-tbl-flags = <1 0 0>;
 		qcom,gpio-req-tbl-label = "CAMIF_MCLK2",
 					"CAM_RESET2",
 					"CAM_VDIG2";
 		qcom,sensor-position = <0>;
 		clocks = <&clock_mmss MCLK3_CLK_SRC>,
 			<&clock_mmss MMSS_CAMSS_MCLK3_CLK>;
+		clock-names = "cam_src_clk", "cam_clk";
+		qcom,clock-rates = <24000000 0>;
 	};
 };
