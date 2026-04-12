@@ -363,7 +363,7 @@ struct dwc3_msm {
 	u64			dummy_gsi_db;
 	dma_addr_t		dummy_gsi_db_dma;
 	int			orientation_override;
-	bool usb_data_enabled;
+	bool			usb_data_enabled;
 };
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
@@ -497,8 +497,8 @@ static inline bool dwc3_msm_is_dev_superspeed(struct dwc3_msm *mdwc)
 	u8 speed;
 
 	speed = dwc3_msm_read_reg(mdwc->base, DWC3_DSTS) & DWC3_DSTS_CONNECTSPD;
-	if ((speed == DWC3_DSTS_SUPERSPEED) ||
-			(speed == DWC3_DSTS_SUPERSPEED_PLUS))
+	if ((speed & DWC3_DSTS_SUPERSPEED) ||
+			(speed & DWC3_DSTS_SUPERSPEED_PLUS))
 		return true;
 
 	return false;
@@ -4153,13 +4153,12 @@ static int dwc3_msm_remove(struct platform_device *pdev)
 	int ret_pm;
 
 	device_remove_file(&pdev->dev, &dev_attr_mode);
+	device_remove_file(&pdev->dev, &dev_attr_usb_data_enabled);
 
 	if (mdwc->dpdm_nb.notifier_call) {
 		regulator_unregister_notifier(mdwc->dpdm_reg, &mdwc->dpdm_nb);
 		mdwc->dpdm_nb.notifier_call = NULL;
 	}
-
-	device_remove_file(&pdev->dev, &dev_attr_usb_data_enabled);
 
 	if (mdwc->usb_psy)
 		power_supply_put(mdwc->usb_psy);
@@ -4998,7 +4997,6 @@ static struct platform_driver dwc3_msm_driver = {
 		.name	= "msm-dwc3",
 		.pm	= &dwc3_msm_dev_pm_ops,
 		.of_match_table	= of_dwc3_matach,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

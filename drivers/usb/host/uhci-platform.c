@@ -190,4 +190,3 @@ static struct platform_driver uhci_platform_driver = {
 		.of_match_table = platform_uhci_ids,
 	},
 };
-MODULE_SOFTDEP("pre: ehci_platform");

@@ -320,9 +320,6 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 
 	dwc3_gadget_del_and_unmap_request(dep, req, status);
 
-	if (!dep->endpoint.desc)
-		return;
-
 	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
 					(list_empty(&dep->started_list))) {
 		dep->flags |= DWC3_EP_PENDING_REQUEST;
@@ -1737,18 +1734,11 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	return 0;
 }
 
-static void dwc3_gadget_wakeup_irq_work(struct irq_work *work)
-{
-	struct dwc3 *dwc = container_of(work, typeof(*dwc), wakeup_irq_work);
-
-	schedule_work(&dwc->wakeup_work);
-}
-
 static int dwc3_gadget_wakeup(struct usb_gadget *g)
 {
 	struct dwc3	*dwc = gadget_to_dwc(g);
 
-	irq_work_queue(&dwc->wakeup_irq_work);
+	schedule_work(&dwc->wakeup_work);
 	return 0;
 }
 
@@ -2291,9 +2281,6 @@ static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on, int suspend)
 	u32			reg, reg1;
 	u32			timeout = 1500;
 	u32			saved_config = 0;
-
-	if (pm_runtime_suspended(dwc->dev))
-		return 0;
 
 	dbg_event(0xFF, "run_stop", is_on);
 
@@ -3019,8 +3006,6 @@ static int dwc3_gadget_init_endpoint(struct dwc3 *dwc, u8 epnum)
 	INIT_LIST_HEAD(&dep->started_list);
 	INIT_LIST_HEAD(&dep->cancelled_list);
 
-	dwc3_debugfs_create_endpoint_dir(dep);
-
 	return 0;
 }
 
@@ -3092,7 +3077,6 @@ static void dwc3_gadget_free_endpoints(struct dwc3 *dwc)
 			list_del(&dep->endpoint.ep_list);
 		}
 
-		debugfs_remove_recursive(debugfs_lookup(dep->name, dwc->root));
 		kfree(dep);
 	}
 }
@@ -3341,11 +3325,16 @@ static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3_ep *dep,
 
 	dwc3_gadget_ep_cleanup_completed_requests(dep, event, status);
 
+	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
+					(list_empty(&dep->started_list))) {
+		stop = true;
+		dbg_event(dep->number, "STOPXFER", dep->frame_number);
+	}
+
 	if (stop)
 		dwc3_stop_active_transfer(dwc, dep->number, true, true);
 	else if (dwc3_gadget_ep_should_continue(dep))
 		__dwc3_gadget_kick_transfer(dep);
-
 	/*
 	 * WORKAROUND: This is the 2nd half of U1/U2 -> U0 workaround.
 	 * See dwc3_gadget_linksts_change_interrupt() for 1st half.
@@ -3504,7 +3493,7 @@ static void dwc3_reset_gadget(struct dwc3 *dwc)
 }
 
 void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum, bool force,
-			       bool interrupt)
+	bool interrupt)
 {
 	struct dwc3_ep *dep;
 	struct dwc3_gadget_ep_cmd_params params;
@@ -4397,7 +4386,6 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 	dwc->irq_gadget = irq;
 
 	INIT_WORK(&dwc->wakeup_work, dwc3_gadget_wakeup_work);
-	init_irq_work(&dwc->wakeup_irq_work, dwc3_gadget_wakeup_irq_work);
 
 	dwc->ep0_trb = dma_alloc_coherent(dwc->sysdev,
 					  sizeof(*dwc->ep0_trb) * 2,

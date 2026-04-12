@@ -2153,15 +2153,18 @@ static int ffs_func_eps_enable(struct ffs_function *func)
 
 	spin_lock_irqsave(&func->ffs->eps_lock, flags);
 	ffs = func->ffs;
-	ffs_log("enter: state %d setup_state %d flag %lu", ffs->state,
-		ffs->setup_state, ffs->flags);
 	ep = func->eps;
 	epfile = ffs->epfiles;
 	count = ffs->eps_count;
+
+	ffs_log("enter: state %d setup_state %d flag %lu", func->ffs->state,
+		func->ffs->setup_state, func->ffs->flags);
+
 	if (!epfile) {
 		ret = -ENOMEM;
 		goto done;
 	}
+
 	while (count--) {
 		ep->ep->driver_data = ep;
 
