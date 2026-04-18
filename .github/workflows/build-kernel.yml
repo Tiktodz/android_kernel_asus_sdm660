@@ -1,0 +1,74 @@
+name: Build Image.gz-dtb
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-kernel:
+    name: Compile Kernel
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout Kernel Source
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1 
+
+    - name: Setup Build Environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git ccache curl automake flex lzop bison gperf build-essential zip curl zlib1g-dev libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3 gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi wget
+
+    - name: Setup Ccache
+      uses: actions/cache@v4
+      with:
+        path: ~/.ccache
+        key: kernel-ccache-${{ github.sha }}
+        restore-keys: |
+          kernel-ccache-
+
+    - name: Download Toolchain (Google AOSP Clang)
+      run: |
+        git clone --depth=1 --filter=blob:none --sparse https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang-aosp
+        cd clang-aosp
+        
+        git sparse-checkout set clang-r563880c
+        
+        cd ..
+        mv clang-aosp/clang-r563880c clang
+        
+        rm -rf clang-aosp
+
+    - name: Build Kernel
+      env:
+        ARCH: arm64
+        SUBARCH: arm64
+        DEFCONFIG: asus/X00TD_defconfig 
+      run: |
+        export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
+        
+        export CCACHE_DIR=~/.ccache
+        export CCACHE_COMPILERCHECK=none
+        export CCACHE_COMPRESS=1
+        export CCACHE_MAXSIZE=5G
+        ccache -z
+        
+        mkdir -p out
+        
+        make O=out ARCH=$ARCH SUBARCH=$SUBARCH $DEFCONFIG
+        
+        make -j$(nproc --all) O=out ARCH=$ARCH SUBARCH=$SUBARCH \
+        LLVM=1 \
+        LLVM_IAS=1 \
+        CC="ccache clang" \
+        CROSS_COMPILE=aarch64-linux-gnu- \
+        CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+        Image.gz-dtb
+        
+        ccache -s 
+
+    - name: Upload Kernel Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Compiled-Kernel-X00TD
+        path: out/arch/arm64/boot/Image.gz-dtb
