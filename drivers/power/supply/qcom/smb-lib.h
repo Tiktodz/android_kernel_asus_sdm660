@@ -327,7 +327,7 @@ struct smb_charger {
 	bool			sw_jeita_enabled;
 	bool			is_hdc;
 	bool			chg_done;
-	bool			connector_type;
+	int			connector_type;
 	bool			otg_en;
 	bool			vconn_en;
 	bool			suspend_input_on_debug_batt;
@@ -347,6 +347,7 @@ struct smb_charger {
 	u32			jeita_status;
 	u8			float_cfg;
 	bool			use_extcon;
+    bool			uusb_gpio_otg_quirk;
 	bool			otg_present;
 	bool			is_audio_adapter;
 	bool			disable_stat_sw_override;

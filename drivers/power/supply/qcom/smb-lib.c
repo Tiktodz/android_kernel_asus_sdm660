@@ -17,6 +17,11 @@
 #include "step-chg-jeita.h"
 #include "storm-watch.h"
 
+#define PM660_GPIO5_STATUS_REG		0xC408
+#define PM660_GPIO10_STATUS_REG		0xC908
+#define PM660_GPIO_VALUE_BIT		BIT(0)
+#define X00TD_OTG_POLL_MS	200
+
 #define smblib_err(chg, fmt, ...)		\
 	pr_err("%s: %s: " fmt, chg->name,	\
 		__func__, ##__VA_ARGS__)	\
@@ -3612,13 +3617,29 @@ irqreturn_t smblib_handle_usbin_uv(int irq, void *data)
 static void smblib_micro_usb_plugin(struct smb_charger *chg, bool vbus_rising)
 {
 	if (vbus_rising) {
-		/* use the typec flag even though its not typec */
 		chg->typec_present = true;
+
+		if (chg->uusb_gpio_otg_quirk) {
+			/*
+			 * External VBUS must win immediately over OTG host mode.
+			 * This avoids waiting for the next polling cycle.
+			 */
+			chg->otg_present = false;
+			extcon_set_state_sync(chg->extcon, EXTCON_USB_HOST, false);
+			extcon_set_state_sync(chg->extcon, EXTCON_USB, true);
+			power_supply_changed(chg->usb_psy);
+
+			mod_delayed_work(system_wq, &chg->uusb_otg_work, 0);
+			return;
+		}
 	} else {
 		chg->typec_present = false;
 		smblib_update_usb_type(chg);
 		extcon_set_state_sync(chg->extcon, EXTCON_USB, false);
 		smblib_uusb_removal(chg);
+
+		if (chg->uusb_gpio_otg_quirk)
+			mod_delayed_work(system_wq, &chg->uusb_otg_work, 0);
 	}
 }
 
@@ -4848,26 +4869,112 @@ static void smblib_uusb_otg_work(struct work_struct *work)
 {
 	struct smb_charger *chg = container_of(work, struct smb_charger,
 						uusb_otg_work.work);
+	union power_supply_propval pval = { 0, };
 	int rc;
-	u8 stat;
-	bool otg;
+	int host_state, usb_state;
+	u8 stat = 0;
+	u8 gpio5 = 0, gpio10 = 0;
+	bool usb_present = false;
+	bool otg_gnd = false, otg_gpio = false, otg = false;
+	bool changed = false;
 
 	rc = smblib_read(chg, TYPE_C_STATUS_3_REG, &stat);
 	if (rc < 0) {
 		smblib_err(chg, "Couldn't read TYPE_C_STATUS_3 rc=%d\n", rc);
-		goto out;
+		goto out_resched;
 	}
 
-	otg = !!(stat & (U_USB_GND_NOVBUS_BIT | U_USB_GND_BIT));
-	extcon_set_state_sync(chg->extcon, EXTCON_USB_HOST, otg);
-	smblib_dbg(chg, PR_REGISTER, "TYPE_C_STATUS_3 = 0x%02x OTG=%d\n",
-			stat, otg);
-	power_supply_changed(chg->usb_psy);
+	rc = smblib_get_prop_usb_present(chg, &pval);
+	if (rc >= 0)
+		usb_present = !!pval.intval;
 
-out:
+	/*
+	 * Standard OTG detection path:
+	 * X01BD and similar boards.
+	 */
+	otg_gnd = !!(stat & (U_USB_GND_NOVBUS_BIT | U_USB_GND_BIT));
+
+	/*
+	 * X00TD quirk:
+	 * OTG ID is not reflected in TYPE_C_STATUS_3.
+	 * Instead, PM660 GPIO status changes:
+	 *   GPIO5  status 0x81 -> 0x80
+	 *   GPIO10 status 0x81 -> 0x80
+	 *
+	 * Treat low level on both lines as OTG attached.
+	 */
+	if (chg->uusb_gpio_otg_quirk) {
+		rc = smblib_read(chg, PM660_GPIO5_STATUS_REG, &gpio5);
+		if (rc < 0) {
+			smblib_err(chg, "Couldn't read GPIO5 status rc=%d\n", rc);
+			gpio5 = PM660_GPIO_VALUE_BIT;
+		}
+
+		rc = smblib_read(chg, PM660_GPIO10_STATUS_REG, &gpio10);
+		if (rc < 0) {
+			smblib_err(chg, "Couldn't read GPIO10 status rc=%d\n", rc);
+			gpio10 = PM660_GPIO_VALUE_BIT;
+		}
+
+		otg_gpio = !(gpio5 & PM660_GPIO_VALUE_BIT) &&
+			   !(gpio10 & PM660_GPIO_VALUE_BIT);
+	}
+
+	/*
+	 * External VBUS must always win over OTG host mode.
+	 */
+	otg = !usb_present && (otg_gnd || otg_gpio);
+
+	host_state = extcon_get_state(chg->extcon, EXTCON_USB_HOST);
+	usb_state = extcon_get_state(chg->extcon, EXTCON_USB);
+
+	if (host_state < 0)
+		host_state = 0;
+	if (usb_state < 0)
+		usb_state = 0;
+
+	if (otg) {
+		if (usb_state) {
+			extcon_set_state_sync(chg->extcon, EXTCON_USB, false);
+			changed = true;
+		}
+		if (!host_state) {
+			extcon_set_state_sync(chg->extcon, EXTCON_USB_HOST, true);
+			changed = true;
+		}
+		chg->otg_present = true;
+	} else {
+		if (host_state) {
+			extcon_set_state_sync(chg->extcon, EXTCON_USB_HOST, false);
+			changed = true;
+		}
+		if (!!usb_state != usb_present) {
+			extcon_set_state_sync(chg->extcon, EXTCON_USB,
+					      usb_present);
+			changed = true;
+		}
+		chg->otg_present = false;
+	}
+
+	smblib_dbg(chg, PR_REGISTER,
+		   "uusb_otg_work: stat=0x%02x usb=%d otg=%d gnd=%d gpio=%d gpio5=0x%02x gpio10=0x%02x\n",
+		   stat, usb_present, otg, otg_gnd, otg_gpio, gpio5, gpio10);
+
+	if (changed)
+		power_supply_changed(chg->usb_psy);
+
+out_resched:
+	/*
+	 * X00TD does not generate usable OTG attach IRQ through SMB2.
+	 * Poll periodically to detect GPIO-based OTG attach/detach.
+	 */
+	if (chg->uusb_gpio_otg_quirk) {
+		mod_delayed_work(system_wq, &chg->uusb_otg_work,
+				 msecs_to_jiffies(X00TD_OTG_POLL_MS));
+	}
+
 	vote(chg->awake_votable, OTG_DELAY_VOTER, false, 0);
 }
-
 
 static void smblib_hvdcp_detect_work(struct work_struct *work)
 {

@@ -175,8 +175,8 @@ struct smb2 {
 static int __debug_mask;
 
 static int __weak_chg_icl_ua = 500000;
-static ssize_t weak_chg_icl_ua_show(struct device *dev, struct device_attribute
-				     *attr, char *buf)
+static ssize_t weak_chg_icl_ua_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", __weak_chg_icl_ua);
 }
@@ -196,8 +196,8 @@ static ssize_t weak_chg_icl_ua_store(struct device *dev,
 static DEVICE_ATTR_RW(weak_chg_icl_ua);
 
 static int __try_sink_enabled = 1;
-static ssize_t try_sink_enabled_show(struct device *dev, struct device_attribute
-				     *attr, char *buf)
+static ssize_t try_sink_enabled_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", __try_sink_enabled);
 }
@@ -245,15 +245,15 @@ static struct attribute *smb2_attrs[] = {
 };
 ATTRIBUTE_GROUPS(smb2);
 
-
-#define MICRO_1P5A		1500000
-#define MICRO_P1A		100000
+#define MICRO_1P5A			1500000
+#define MICRO_P1A			100000
 #define OTG_DEFAULT_DEGLITCH_TIME_MS	50
 #define MIN_WD_BARK_TIME		16
 #define DEFAULT_WD_BARK_TIME		64
 #define BITE_WDOG_TIMEOUT_8S		0x3
 #define BARK_WDOG_TIMEOUT_MASK		GENMASK(3, 2)
 #define BARK_WDOG_TIMEOUT_SHIFT		2
+
 static int smb2_parse_dt(struct smb2 *chip)
 {
 	struct smb_charger *chg = &chip->chg;
@@ -372,8 +372,7 @@ static int smb2_parse_dt(struct smb2 *chip)
 	chip->dt.auto_recharge_soc = of_property_read_bool(node,
 						"qcom,auto-recharge-soc");
 
-	chg->use_extcon = of_property_read_bool(node,
-						"qcom,use-extcon");
+	chg->use_extcon = of_property_read_bool(node, "qcom,use-extcon");
 
 	chg->dcp_icl_ua = chip->dt.usb_icl_ua;
 
@@ -393,6 +392,9 @@ static int smb2_parse_dt(struct smb2 *chip)
 
 	chg->ufp_only_mode = of_property_read_bool(node,
 					"qcom,ufp-only-mode");
+					
+	chg->uusb_gpio_otg_quirk = of_property_read_bool(node,
+				"qcom,uusb-gpio-otg-quirk");				
 
 	return 0;
 }
@@ -791,10 +793,6 @@ static enum power_supply_property smb2_usb_main_props[] = {
 	POWER_SUPPLY_PROP_FCC_DELTA,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 	POWER_SUPPLY_PROP_TOGGLE_STAT,
-	/*
-	 * TODO move the TEMP and TEMP_MAX properties here,
-	 * and update the thermal balancer to look here
-	 */
 };
 
 static int smb2_usb_main_get_prop(struct power_supply *psy,
@@ -1025,7 +1023,7 @@ static int smb2_init_dc_psy(struct smb2 *chip)
 						  &dc_psy_desc,
 						  &dc_cfg);
 	if (IS_ERR(chg->dc_psy)) {
-		pr_err("Couldn't register USB power supply\n");
+		pr_err("Couldn't register DC power supply\n");
 		return PTR_ERR(chg->dc_psy);
 	}
 
@@ -1111,11 +1109,9 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 		rc = smblib_get_prop_system_temp_level_max(chg, val);
 		break;
 	case POWER_SUPPLY_PROP_CHARGER_TEMP:
-		/* do not query RRADC if charger is not present */
 		rc = smblib_get_prop_usb_present(chg, &pval);
 		if (rc < 0)
 			pr_err("Couldn't get usb present rc=%d\n", rc);
-
 		rc = -ENODATA;
 		if (pval.intval)
 			rc = smblib_get_prop_charger_temp(chg, val);
@@ -1170,7 +1166,6 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 					      USER_VOTER);
 		break;
 	case POWER_SUPPLY_PROP_SET_SHIP_MODE:
-		/* Not in ship mode as long as device is active */
 		val->intval = 0;
 		break;
 	case POWER_SUPPLY_PROP_DIE_HEALTH:
@@ -1285,7 +1280,6 @@ static int smb2_batt_set_prop(struct power_supply *psy,
 			vote(chg->fcc_votable, FG_ESR_VOTER, false, 0);
 		break;
 	case POWER_SUPPLY_PROP_SET_SHIP_MODE:
-		/* Not in ship mode as long as the device is active */
 		if (!val->intval)
 			break;
 		if (chg->pl.psy)
@@ -1371,9 +1365,9 @@ static int smb2_init_batt_psy(struct smb2 *chip)
  ******************************/
 
 static struct regulator_ops smb2_vbus_reg_ops = {
-	.enable = smblib_vbus_regulator_enable,
-	.disable = smblib_vbus_regulator_disable,
-	.is_enabled = smblib_vbus_regulator_is_enabled,
+	.enable		= smblib_vbus_regulator_enable,
+	.disable	= smblib_vbus_regulator_disable,
+	.is_enabled	= smblib_vbus_regulator_is_enabled,
 };
 
 static int smb2_init_vbus_regulator(struct smb2 *chip)
@@ -1390,11 +1384,11 @@ static int smb2_init_vbus_regulator(struct smb2 *chip)
 	cfg.dev = chg->dev;
 	cfg.driver_data = chip;
 
-	chg->vbus_vreg->rdesc.owner = THIS_MODULE;
-	chg->vbus_vreg->rdesc.type = REGULATOR_VOLTAGE;
-	chg->vbus_vreg->rdesc.ops = &smb2_vbus_reg_ops;
-	chg->vbus_vreg->rdesc.of_match = "qcom,smb2-vbus";
-	chg->vbus_vreg->rdesc.name = "qcom,smb2-vbus";
+	chg->vbus_vreg->rdesc.owner	= THIS_MODULE;
+	chg->vbus_vreg->rdesc.type	= REGULATOR_VOLTAGE;
+	chg->vbus_vreg->rdesc.ops	= &smb2_vbus_reg_ops;
+	chg->vbus_vreg->rdesc.of_match	= "qcom,smb2-vbus";
+	chg->vbus_vreg->rdesc.name	= "qcom,smb2-vbus";
 
 	chg->vbus_vreg->rdev = devm_regulator_register(chg->dev,
 						&chg->vbus_vreg->rdesc, &cfg);
@@ -1402,20 +1396,20 @@ static int smb2_init_vbus_regulator(struct smb2 *chip)
 		rc = PTR_ERR(chg->vbus_vreg->rdev);
 		chg->vbus_vreg->rdev = NULL;
 		if (rc != -EPROBE_DEFER)
-			pr_err("Couldn't register VBUS regualtor rc=%d\n", rc);
+			pr_err("Couldn't register VBUS regulator rc=%d\n", rc);
 	}
 
 	return rc;
 }
 
-/******************************
+/********************************
  * VCONN REGULATOR REGISTRATION *
- ******************************/
+ ********************************/
 
 static struct regulator_ops smb2_vconn_reg_ops = {
-	.enable = smblib_vconn_regulator_enable,
-	.disable = smblib_vconn_regulator_disable,
-	.is_enabled = smblib_vconn_regulator_is_enabled,
+	.enable		= smblib_vconn_regulator_enable,
+	.disable	= smblib_vconn_regulator_disable,
+	.is_enabled	= smblib_vconn_regulator_is_enabled,
 };
 
 static int smb2_init_vconn_regulator(struct smb2 *chip)
@@ -1424,6 +1418,10 @@ static int smb2_init_vconn_regulator(struct smb2 *chip)
 	struct regulator_config cfg = {};
 	int rc = 0;
 
+	/*
+	 * VCONN not needed for Micro USB — no CC pins.
+	 * vconn_vreg stays NULL; smb2_remove() checks before unregister.
+	 */
 	if (chg->connector_type == POWER_SUPPLY_CONNECTOR_MICRO_USB)
 		return 0;
 
@@ -1435,11 +1433,11 @@ static int smb2_init_vconn_regulator(struct smb2 *chip)
 	cfg.dev = chg->dev;
 	cfg.driver_data = chip;
 
-	chg->vconn_vreg->rdesc.owner = THIS_MODULE;
-	chg->vconn_vreg->rdesc.type = REGULATOR_VOLTAGE;
-	chg->vconn_vreg->rdesc.ops = &smb2_vconn_reg_ops;
-	chg->vconn_vreg->rdesc.of_match = "qcom,smb2-vconn";
-	chg->vconn_vreg->rdesc.name = "qcom,smb2-vconn";
+	chg->vconn_vreg->rdesc.owner	= THIS_MODULE;
+	chg->vconn_vreg->rdesc.type	= REGULATOR_VOLTAGE;
+	chg->vconn_vreg->rdesc.ops	= &smb2_vconn_reg_ops;
+	chg->vconn_vreg->rdesc.of_match	= "qcom,smb2-vconn";
+	chg->vconn_vreg->rdesc.name	= "qcom,smb2-vconn";
 
 	chg->vconn_vreg->rdev = devm_regulator_register(chg->dev,
 						&chg->vconn_vreg->rdesc, &cfg);
@@ -1447,7 +1445,7 @@ static int smb2_init_vconn_regulator(struct smb2 *chip)
 		rc = PTR_ERR(chg->vconn_vreg->rdev);
 		chg->vconn_vreg->rdev = NULL;
 		if (rc != -EPROBE_DEFER)
-			pr_err("Couldn't register VCONN regualtor rc=%d\n", rc);
+			pr_err("Couldn't register VCONN regulator rc=%d\n", rc);
 	}
 
 	return rc;
@@ -1515,10 +1513,6 @@ static int smb2_configure_typec(struct smb_charger *chg)
 {
 	int rc;
 
-	/*
-	 * trigger the usb-typec-change interrupt only when the CC state
-	 * changes
-	 */
 	rc = smblib_write(chg, TYPE_C_INTRPT_ENB_REG,
 			  TYPEC_CCSTATE_CHANGE_INT_EN_BIT);
 	if (rc < 0) {
@@ -1527,10 +1521,6 @@ static int smb2_configure_typec(struct smb_charger *chg)
 		return rc;
 	}
 
-	/*
-	 * disable Type-C factory mode and stay in Attached.SRC state when VCONN
-	 * over-current happens
-	 */
 	rc = smblib_masked_write(chg, TYPE_C_CFG_REG,
 			FACTORY_MODE_DETECTION_EN_BIT | VCONN_OC_CFG_BIT, 0);
 	if (rc < 0) {
@@ -1538,7 +1528,6 @@ static int smb2_configure_typec(struct smb_charger *chg)
 		return rc;
 	}
 
-	/* increase VCONN softstart */
 	rc = smblib_masked_write(chg, TYPE_C_CFG_2_REG,
 			VCONN_SOFTSTART_CFG_MASK, VCONN_SOFTSTART_CFG_MASK);
 	if (rc < 0) {
@@ -1547,7 +1536,6 @@ static int smb2_configure_typec(struct smb_charger *chg)
 		return rc;
 	}
 
-	/* disable try.SINK mode and legacy cable IRQs */
 	rc = smblib_masked_write(chg, TYPE_C_CFG_3_REG, EN_TRYSINK_MODE_BIT |
 				TYPEC_NONCOMPLIANT_LEGACY_CABLE_INT_EN_BIT |
 				TYPEC_LEGACY_CABLE_INT_EN_BIT, 0);
@@ -1556,8 +1544,8 @@ static int smb2_configure_typec(struct smb_charger *chg)
 		return rc;
 	}
 
-	/* Set CC threshold to 1.6 V in source mode */
-	rc = smblib_masked_write(chg, TYPE_C_CFG_2_REG, DFP_CC_1P4V_OR_1P6V_BIT,
+	rc = smblib_masked_write(chg, TYPE_C_CFG_2_REG,
+				 DFP_CC_1P4V_OR_1P6V_BIT,
 				 DFP_CC_1P4V_OR_1P6V_BIT);
 	if (rc < 0)
 		dev_err(chg->dev,
@@ -1570,8 +1558,7 @@ static int smb2_disable_typec(struct smb_charger *chg)
 {
 	int rc;
 
-	/* Move to typeC mode */
-	/* configure FSM in idle state and disable UFP_ENABLE bit */
+	/* Step 1: FSM to idle, disable UFP_EN */
 	rc = smblib_masked_write(chg, TYPE_C_INTRPT_ENB_SOFTWARE_CTRL_REG,
 			TYPEC_DISABLE_CMD_BIT | UFP_EN_CMD_BIT,
 			TYPEC_DISABLE_CMD_BIT);
@@ -1579,57 +1566,49 @@ static int smb2_disable_typec(struct smb_charger *chg)
 		dev_err(chg->dev, "Couldn't put FSM in idle rc=%d\n", rc);
 		return rc;
 	}
-
-	/* wait for FSM to enter idle state */
 	msleep(200);
-	/* configure TypeC mode */
+
+	/* Step 2: Disable Type-C */
 	rc = smblib_masked_write(chg, TYPE_C_CFG_REG,
 			TYPE_C_OR_U_USB_BIT, 0);
 	if (rc < 0) {
-		dev_err(chg->dev, "Couldn't enable micro USB mode rc=%d\n", rc);
+		dev_err(chg->dev, "Couldn't disable Type-C mode rc=%d\n", rc);
 		return rc;
 	}
-
-	/* wait for mode change before enabling FSM */
 	usleep_range(10000, 11000);
-	/* release FSM from idle state */
+
+	/* Step 3: Release FSM */
 	rc = smblib_masked_write(chg, TYPE_C_INTRPT_ENB_SOFTWARE_CTRL_REG,
 			TYPEC_DISABLE_CMD_BIT, 0);
 	if (rc < 0) {
 		dev_err(chg->dev, "Couldn't release FSM rc=%d\n", rc);
 		return rc;
 	}
-
-	/* wait for FSM to start */
 	msleep(100);
-	/* move to uUSB mode */
-	/* configure FSM in idle state */
+
+	/* Step 4: FSM to idle again */
 	rc = smblib_masked_write(chg, TYPE_C_INTRPT_ENB_SOFTWARE_CTRL_REG,
 			TYPEC_DISABLE_CMD_BIT, TYPEC_DISABLE_CMD_BIT);
 	if (rc < 0) {
 		dev_err(chg->dev, "Couldn't put FSM in idle rc=%d\n", rc);
 		return rc;
 	}
-
-	/* wait for FSM to enter idle state */
 	msleep(200);
-	/* configure micro USB mode */
+
+	/* Step 5: Enable Micro USB mode */
 	rc = smblib_masked_write(chg, TYPE_C_CFG_REG,
 			TYPE_C_OR_U_USB_BIT, TYPE_C_OR_U_USB_BIT);
 	if (rc < 0) {
 		dev_err(chg->dev, "Couldn't enable micro USB mode rc=%d\n", rc);
 		return rc;
 	}
-
-	/* wait for mode change before enabling FSM */
 	usleep_range(10000, 11000);
-	/* release FSM from idle state */
+
+	/* Step 6: Release FSM */
 	rc = smblib_masked_write(chg, TYPE_C_INTRPT_ENB_SOFTWARE_CTRL_REG,
 			TYPEC_DISABLE_CMD_BIT, 0);
-	if (rc < 0) {
+	if (rc < 0)
 		dev_err(chg->dev, "Couldn't release FSM rc=%d\n", rc);
-		return rc;
-	}
 
 	return rc;
 }
@@ -1670,7 +1649,6 @@ static int smb2_init_hw(struct smb2 *chip)
 		chg->param.freq_boost.max_u = chip->dt.max_freq_khz;
 	}
 
-	/* set a slower soft start setting for OTG */
 	rc = smblib_masked_write(chg, DC_ENG_SSUPPLY_CFG2_REG,
 				ENG_SSUPPLY_IVREF_OTG_SS_MASK, OTG_SS_SLOW);
 	if (rc < 0) {
@@ -1678,7 +1656,6 @@ static int smb2_init_hw(struct smb2 *chip)
 		return rc;
 	}
 
-	/* set OTG current limit */
 	rc = smblib_set_charge_param(chg, &chg->param.otg_cl,
 				(chg->wa_flags & OTG_WA) ?
 				chg->param.otg_cl.min_u : chg->otg_cl_ua);
@@ -1697,14 +1674,11 @@ static int smb2_init_hw(struct smb2 *chip)
 
 	smblib_rerun_apsd_if_required(chg);
 
-	/* clear the ICL override if it is set */
 	if (smblib_icl_override(chg, false) < 0) {
 		pr_err("Couldn't disable ICL override rc=%d\n", rc);
 		return rc;
 	}
 
-	/* votes must be cast before configuring software control */
-	/* vote 0mA on usb_icl for non battery platforms */
 	vote(chg->usb_icl_votable,
 		DEFAULT_VOTER, chip->dt.no_battery, 0);
 	vote(chg->dc_suspend_votable,
@@ -1723,10 +1697,7 @@ static int smb2_init_hw(struct smb2 *chip)
 			true, 0);
 	vote(chg->pd_disallowed_votable_indirect, PD_NOT_SUPPORTED_VOTER,
 			chip->dt.no_pd, 0);
-	/*
-	 * AICL configuration:
-	 * start from min and AICL ADC disable
-	 */
+
 	rc = smblib_masked_write(chg, USBIN_AICL_OPTIONS_CFG_REG,
 			USBIN_AICL_START_AT_MAX_BIT
 				| USBIN_AICL_ADC_EN_BIT, 0);
@@ -1735,7 +1706,6 @@ static int smb2_init_hw(struct smb2 *chip)
 		return rc;
 	}
 
-	/* Configure charge enable for software control; active high */
 	rc = smblib_masked_write(chg, CHGR_CFG2_REG,
 				 CHG_EN_POLARITY_BIT |
 				 CHG_EN_SRC_BIT, 0);
@@ -1744,34 +1714,39 @@ static int smb2_init_hw(struct smb2 *chip)
 		return rc;
 	}
 
-	/* enable the charging path */
 	rc = vote(chg->chg_disable_votable, DEFAULT_VOTER, false, 0);
 	if (rc < 0) {
 		dev_err(chg->dev, "Couldn't enable charging rc=%d\n", rc);
 		return rc;
 	}
 
-	/* Check USB connector type (typeC/microUSB) */
+	/*
+	 * Detect connector type from HW register.
+	 * EN_MICRO_USB_MODE_BIT = 1 -> Micro USB (X00TD, X01BD)
+	 * EN_MICRO_USB_MODE_BIT = 0 -> Type-C
+	 */
 	rc = smblib_read(chg, RID_CC_CONTROL_7_0_REG, &val);
 	if (rc < 0) {
 		dev_err(chg->dev, "Couldn't read RID_CC_CONTROL_7_0 rc=%d\n",
 			rc);
 		return rc;
 	}
+
 	chg->connector_type = (val & EN_MICRO_USB_MODE_BIT) ?
 					POWER_SUPPLY_CONNECTOR_MICRO_USB
 					: POWER_SUPPLY_CONNECTOR_TYPEC;
+
 	if (chg->connector_type == POWER_SUPPLY_CONNECTOR_MICRO_USB)
 		rc = smb2_disable_typec(chg);
 	else
 		rc = smb2_configure_typec(chg);
+
 	if (rc < 0) {
 		dev_err(chg->dev,
-			"Couldn't configure Type-C interrupts rc=%d\n", rc);
+			"Couldn't configure connector type rc=%d\n", rc);
 		return rc;
 	}
 
-	/* Connector types based votes */
 	vote(chg->hvdcp_disable_votable_indirect, PD_INACTIVE_VOTER,
 		(chg->connector_type == POWER_SUPPLY_CONNECTOR_TYPEC), 0);
 	vote(chg->hvdcp_disable_votable_indirect, VBUS_CC_SHORT_VOTER,
@@ -1781,7 +1756,6 @@ static int smb2_init_hw(struct smb2 *chip)
 	vote(chg->hvdcp_enable_votable, MICRO_USB_VOTER,
 		(chg->connector_type == POWER_SUPPLY_CONNECTOR_MICRO_USB), 0);
 
-	/* configure VCONN for software control */
 	rc = smblib_masked_write(chg, TYPE_C_INTRPT_ENB_SOFTWARE_CTRL_REG,
 				 VCONN_EN_SRC_BIT | VCONN_EN_VALUE_BIT,
 				 VCONN_EN_SRC_BIT);
@@ -1791,7 +1765,6 @@ static int smb2_init_hw(struct smb2 *chip)
 		return rc;
 	}
 
-	/* configure VBUS for software control */
 	rc = smblib_masked_write(chg, OTG_CFG_REG, OTG_EN_SRC_CFG_BIT, 0);
 	if (rc < 0) {
 		dev_err(chg->dev,
@@ -1807,11 +1780,10 @@ static int smb2_init_hw(struct smb2 *chip)
 			BARK_WDOG_TIMEOUT_MASK | BITE_WDOG_TIMEOUT_MASK,
 			val);
 	if (rc) {
-		pr_err("Couldn't configue WD config rc=%d\n", rc);
+		pr_err("Couldn't configure WD config rc=%d\n", rc);
 		return rc;
 	}
 
-	/* enable WD BARK and enable it on plugin */
 	rc = smblib_masked_write(chg, WD_CFG_REG,
 			WATCHDOG_TRIGGER_AFP_EN_BIT |
 			WDOG_TIMER_EN_ON_PLUGIN_BIT |
@@ -1819,18 +1791,16 @@ static int smb2_init_hw(struct smb2 *chip)
 			WDOG_TIMER_EN_ON_PLUGIN_BIT |
 			BARK_WDOG_INT_EN_BIT);
 	if (rc) {
-		pr_err("Couldn't configue WD config rc=%d\n", rc);
+		pr_err("Couldn't configure WD config rc=%d\n", rc);
 		return rc;
 	}
 
-	/* configure wipower watts */
 	rc = smb2_config_wipower_input_power(chip, chip->dt.wipower_max_uw);
 	if (rc < 0) {
 		dev_err(chg->dev, "Couldn't configure wipower rc=%d\n", rc);
 		return rc;
 	}
 
-	/* disable h/w autonomous parallel charging control */
 	rc = smblib_masked_write(chg, MISC_CFG_REG,
 				 STAT_PARALLEL_1400MA_EN_CFG_BIT, 0);
 	if (rc < 0) {
@@ -1840,9 +1810,6 @@ static int smb2_init_hw(struct smb2 *chip)
 		return rc;
 	}
 
-	/*
-	 * allow DRP.DFP time to exceed by tPDdebounce time.
-	 */
 	rc = smblib_masked_write(chg, TAPER_TIMER_SEL_CFG_REG,
 				TYPEC_DRP_DFP_TIME_CFG_BIT,
 				TYPEC_DRP_DFP_TIME_CFG_BIT);
@@ -1852,7 +1819,6 @@ static int smb2_init_hw(struct smb2 *chip)
 		return rc;
 	}
 
-	/* configure float charger options */
 	switch (chip->dt.float_option) {
 	case 1:
 		rc = smblib_masked_write(chg, USBIN_OPTIONS_2_CFG_REG,
@@ -1876,15 +1842,16 @@ static int smb2_init_hw(struct smb2 *chip)
 	}
 
 	if (rc < 0) {
-		dev_err(chg->dev, "Couldn't configure float charger options rc=%d\n",
+		dev_err(chg->dev,
+			"Couldn't configure float charger options rc=%d\n",
 			rc);
 		return rc;
 	}
 
 	rc = smblib_read(chg, USBIN_OPTIONS_2_CFG_REG, &chg->float_cfg);
 	if (rc < 0) {
-		dev_err(chg->dev, "Couldn't read float charger options rc=%d\n",
-			rc);
+		dev_err(chg->dev,
+			"Couldn't read float charger options rc=%d\n", rc);
 		return rc;
 	}
 
@@ -1917,7 +1884,8 @@ static int smb2_init_hw(struct smb2 *chip)
 	}
 
 	if (rc < 0) {
-		dev_err(chg->dev, "Couldn't configure charge inhibit threshold rc=%d\n",
+		dev_err(chg->dev,
+			"Couldn't configure charge inhibit threshold rc=%d\n",
 			rc);
 		return rc;
 	}
@@ -1928,7 +1896,8 @@ static int smb2_init_hw(struct smb2 *chip)
 				VBT_LT_CHG_RECHARGE_THRESH_SEL_BIT,
 				VBT_LT_CHG_RECHARGE_THRESH_SEL_BIT);
 		if (rc < 0) {
-			dev_err(chg->dev, "Couldn't configure FG_UPDATE_CFG2_SEL_REG rc=%d\n",
+			dev_err(chg->dev,
+				"Couldn't configure FG_UPDATE_CFG2_SEL_REG rc=%d\n",
 				rc);
 			return rc;
 		}
@@ -1938,7 +1907,8 @@ static int smb2_init_hw(struct smb2 *chip)
 				VBT_LT_CHG_RECHARGE_THRESH_SEL_BIT,
 				SOC_LT_CHG_RECHARGE_THRESH_SEL_BIT);
 		if (rc < 0) {
-			dev_err(chg->dev, "Couldn't configure FG_UPDATE_CFG2_SEL_REG rc=%d\n",
+			dev_err(chg->dev,
+				"Couldn't configure FG_UPDATE_CFG2_SEL_REG rc=%d\n",
 				rc);
 			return rc;
 		}
@@ -1947,7 +1917,8 @@ static int smb2_init_hw(struct smb2 *chip)
 	if (chg->sw_jeita_enabled) {
 		rc = smblib_disable_hw_jeita(chg, true);
 		if (rc < 0) {
-			dev_err(chg->dev, "Couldn't set hw jeita rc=%d\n", rc);
+			dev_err(chg->dev,
+				"Couldn't set hw jeita rc=%d\n", rc);
 			return rc;
 		}
 	}
@@ -1956,7 +1927,8 @@ static int smb2_init_hw(struct smb2 *chip)
 		rc = smblib_masked_write(chg, STAT_CFG_REG,
 				STAT_SW_OVERRIDE_CFG_BIT, 0);
 		if (rc < 0) {
-			dev_err(chg->dev, "Couldn't disable STAT SW override rc=%d\n",
+			dev_err(chg->dev,
+				"Couldn't disable STAT SW override rc=%d\n",
 				rc);
 			return rc;
 		}
@@ -1971,13 +1943,17 @@ static int smb2_post_init(struct smb2 *chip)
 	int rc;
 	u8 stat;
 
-	/* In case the usb path is suspended, we would have missed disabling
-	 * the icl change interrupt because the interrupt could have been
-	 * not requested
-	 */
 	rerun_election(chg->usb_icl_votable);
 
-	/* Force charger in Sink Only mode */
+	/*
+	 * For Micro USB skip Type-C power role configuration.
+	 * FSM is already in uUSB mode via smb2_disable_typec().
+	 * Writing TYPEC_POWER_ROLE_CMD_MASK for MICRO_USB
+	 * may break OTG detection.
+	 */
+	if (chg->connector_type == POWER_SUPPLY_CONNECTOR_MICRO_USB)
+		goto skip_typec_config;
+
 	if (chg->ufp_only_mode) {
 		rc = smblib_read(chg, TYPE_C_INTRPT_ENB_SOFTWARE_CTRL_REG,
 				&stat);
@@ -1988,8 +1964,7 @@ static int smb2_post_init(struct smb2 *chip)
 		}
 
 		if (!(stat & UFP_EN_CMD_BIT)) {
-			/* configure charger in UFP only mode */
-			rc  = smblib_force_ufp(chg);
+			rc = smblib_force_ufp(chg);
 			if (rc < 0) {
 				dev_err(chg->dev,
 					"Couldn't force UFP mode rc=%d\n", rc);
@@ -1997,7 +1972,6 @@ static int smb2_post_init(struct smb2 *chip)
 			}
 		}
 	} else {
-		/* configure power role for dual-role */
 		rc = smblib_masked_write(chg,
 					TYPE_C_INTRPT_ENB_SOFTWARE_CTRL_REG,
 					TYPEC_POWER_ROLE_CMD_MASK, 0);
@@ -2009,8 +1983,8 @@ static int smb2_post_init(struct smb2 *chip)
 		}
 	}
 
+skip_typec_config:
 	rerun_election(chg->usb_irq_enable_votable);
-
 	return 0;
 }
 
@@ -2028,45 +2002,39 @@ static int smb2_chg_config_init(struct smb2 *chip)
 	}
 
 	pmic_rev_id = get_revid_data(revid_dev_node);
-	if (IS_ERR_OR_NULL(pmic_rev_id)) {
-		/*
-		 * the revid peripheral must be registered, any failure
-		 * here only indicates that the rev-id module has not
-		 * probed yet.
-		 */
+	if (IS_ERR_OR_NULL(pmic_rev_id))
 		return -EPROBE_DEFER;
-	}
 
 	switch (pmic_rev_id->pmic_subtype) {
 	case PMI8998_SUBTYPE:
 		chip->chg.chg_param.smb_version = PMI8998_SUBTYPE;
 		chip->chg.wa_flags |= BOOST_BACK_WA | QC_AUTH_INTERRUPT_WA_BIT
 				| TYPEC_PBS_WA_BIT;
-		if (pmic_rev_id->rev4 == PMI8998_V1P1_REV4) /* PMI rev 1.1 */
+		if (pmic_rev_id->rev4 == PMI8998_V1P1_REV4)
 			chg->wa_flags |= QC_CHARGER_DETECTION_WA_BIT;
-		if (pmic_rev_id->rev4 == PMI8998_V2P0_REV4) /* PMI rev 2.0 */
+		if (pmic_rev_id->rev4 == PMI8998_V2P0_REV4)
 			chg->wa_flags |= TYPEC_CC2_REMOVAL_WA_BIT;
-		chg->chg_freq.freq_5V		= 600;
-		chg->chg_freq.freq_6V_8V	= 800;
-		chg->chg_freq.freq_9V		= 1000;
-		chg->chg_freq.freq_12V		= 1200;
-		chg->chg_freq.freq_removal	= 1000;
-		chg->chg_freq.freq_below_otg_threshold = 2000;
-		chg->chg_freq.freq_above_otg_threshold = 800;
+		chg->chg_freq.freq_5V			= 600;
+		chg->chg_freq.freq_6V_8V		= 800;
+		chg->chg_freq.freq_9V			= 1000;
+		chg->chg_freq.freq_12V			= 1200;
+		chg->chg_freq.freq_removal		= 1000;
+		chg->chg_freq.freq_below_otg_threshold	= 2000;
+		chg->chg_freq.freq_above_otg_threshold	= 800;
 		break;
 	case PM660_SUBTYPE:
 		chip->chg.chg_param.smb_version = PM660_SUBTYPE;
 		chip->chg.wa_flags |= BOOST_BACK_WA | OTG_WA | OV_IRQ_WA_BIT
 				| TYPEC_PBS_WA_BIT;
-		chg->param.freq_buck = pm660_params.freq_buck;
+		chg->param.freq_buck  = pm660_params.freq_buck;
 		chg->param.freq_boost = pm660_params.freq_boost;
-		chg->chg_freq.freq_5V		= 650;
-		chg->chg_freq.freq_6V_8V	= 850;
-		chg->chg_freq.freq_9V		= 1050;
-		chg->chg_freq.freq_12V		= 1200;
-		chg->chg_freq.freq_removal	= 1050;
-		chg->chg_freq.freq_below_otg_threshold = 1600;
-		chg->chg_freq.freq_above_otg_threshold = 800;
+		chg->chg_freq.freq_5V			= 650;
+		chg->chg_freq.freq_6V_8V		= 850;
+		chg->chg_freq.freq_9V			= 1050;
+		chg->chg_freq.freq_12V			= 1200;
+		chg->chg_freq.freq_removal		= 1050;
+		chg->chg_freq.freq_below_otg_threshold	= 1600;
+		chg->chg_freq.freq_above_otg_threshold	= 800;
 		break;
 	default:
 		pr_err("PMIC subtype %d not supported\n",
@@ -2466,16 +2434,16 @@ static int smb2_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	chg = &chip->chg;
-	chg->dev = &pdev->dev;
-	chg->param = v1_params;
-	chg->debug_mask = &__debug_mask;
-	chg->try_sink_enabled = &__try_sink_enabled;
-	chg->weak_chg_icl_ua = &__weak_chg_icl_ua;
-	chg->mode = PARALLEL_MASTER;
-	chg->irq_info = smb2_irqs;
-	chg->die_health = -EINVAL;
-	chg->name = "PMI";
-	chg->audio_headset_drp_wait_ms = &__audio_headset_drp_wait_ms;
+	chg->dev			= &pdev->dev;
+	chg->param			= v1_params;
+	chg->debug_mask			= &__debug_mask;
+	chg->try_sink_enabled		= &__try_sink_enabled;
+	chg->weak_chg_icl_ua		= &__weak_chg_icl_ua;
+	chg->mode			= PARALLEL_MASTER;
+	chg->irq_info			= smb2_irqs;
+	chg->die_health			= -EINVAL;
+	chg->name			= "PMI";
+	chg->audio_headset_drp_wait_ms	= &__audio_headset_drp_wait_ms;
 
 	chg->regmap = dev_get_regmap(chg->dev->parent, NULL);
 	if (!chg->regmap) {
@@ -2502,36 +2470,32 @@ static int smb2_probe(struct platform_device *pdev)
 		goto cleanup;
 	}
 
-	/* set driver data before resources request it */
 	platform_set_drvdata(pdev, chip);
 
 	rc = smb2_init_vbus_regulator(chip);
 	if (rc < 0) {
-		pr_err("Couldn't initialize vbus regulator rc=%d\n",
-			rc);
+		pr_err("Couldn't initialize vbus regulator rc=%d\n", rc);
 		goto cleanup;
 	}
 
 	rc = smb2_init_vconn_regulator(chip);
 	if (rc < 0) {
-		pr_err("Couldn't initialize vconn regulator rc=%d\n",
-				rc);
+		pr_err("Couldn't initialize vconn regulator rc=%d\n", rc);
 		goto cleanup;
 	}
 
-	/* extcon registration */
 	chg->extcon = devm_extcon_dev_allocate(chg->dev, smblib_extcon_cable);
 	if (IS_ERR(chg->extcon)) {
 		rc = PTR_ERR(chg->extcon);
-		dev_err(chg->dev, "failed to allocate extcon device rc=%d\n",
-				rc);
+		dev_err(chg->dev,
+			"failed to allocate extcon device rc=%d\n", rc);
 		goto cleanup;
 	}
 
 	rc = devm_extcon_dev_register(chg->dev, chg->extcon);
 	if (rc < 0) {
-		dev_err(chg->dev, "failed to register extcon device rc=%d\n",
-				rc);
+		dev_err(chg->dev,
+			"failed to register extcon device rc=%d\n", rc);
 		goto cleanup;
 	}
 
@@ -2573,8 +2537,7 @@ static int smb2_probe(struct platform_device *pdev)
 
 	rc = smb2_determine_initial_status(chip);
 	if (rc < 0) {
-		pr_err("Couldn't determine initial status rc=%d\n",
-			rc);
+		pr_err("Couldn't determine initial status rc=%d\n", rc);
 		goto cleanup;
 	}
 
@@ -2628,9 +2591,12 @@ static int smb2_probe(struct platform_device *pdev)
 
 	device_init_wakeup(chg->dev, true);
 
-	pr_info("QPNP SMB2 probed successfully usb:present=%d type=%d batt:present = %d health = %d charge = %d\n",
+	pr_info("QPNP SMB2 probed successfully connector=%s usb:present=%d type=%d batt:present=%d health=%d charge=%d\n",
+		chg->connector_type == POWER_SUPPLY_CONNECTOR_MICRO_USB ?
+		"MICRO_USB" : "TYPEC",
 		usb_present, chg->real_charger_type,
 		batt_present, batt_health, batt_charge_type);
+
 	return rc;
 
 cleanup:
@@ -2664,8 +2630,14 @@ static int smb2_remove(struct platform_device *pdev)
 	power_supply_unregister(chg->batt_psy);
 	power_supply_unregister(chg->usb_psy);
 	power_supply_unregister(chg->usb_port_psy);
-	regulator_unregister(chg->vconn_vreg->rdev);
-	regulator_unregister(chg->vbus_vreg->rdev);
+
+	/* vconn_vreg is NULL for Micro USB — check before unregister */
+	if (chg->vconn_vreg && chg->vconn_vreg->rdev)
+		regulator_unregister(chg->vconn_vreg->rdev);
+
+	if (chg->vbus_vreg && chg->vbus_vreg->rdev)
+		regulator_unregister(chg->vbus_vreg->rdev);
+
 	sysfs_remove_groups(&chg->dev->kobj, smb2_groups);
 	debugfs_remove_recursive(chip->dfs_root);
 	platform_set_drvdata(pdev, NULL);
@@ -2677,20 +2649,26 @@ static void smb2_shutdown(struct platform_device *pdev)
 	struct smb2 *chip = platform_get_drvdata(pdev);
 	struct smb_charger *chg = &chip->chg;
 
-	/* disable all interrupts */
 	smb2_disable_interrupts(chg);
 
-	if (!chg->ufp_only_mode)
-		/* configure power role for UFP */
-		smblib_masked_write(chg, TYPE_C_INTRPT_ENB_SOFTWARE_CTRL_REG,
-				TYPEC_POWER_ROLE_CMD_MASK, UFP_EN_CMD_BIT);
+	/*
+	 * For Micro USB do not touch Type-C registers on shutdown.
+	 * FSM is already in uUSB mode after smb2_disable_typec().
+	 */
+	if (chg->connector_type != POWER_SUPPLY_CONNECTOR_MICRO_USB) {
+		if (!chg->ufp_only_mode)
+			smblib_masked_write(chg,
+					TYPE_C_INTRPT_ENB_SOFTWARE_CTRL_REG,
+					TYPEC_POWER_ROLE_CMD_MASK,
+					UFP_EN_CMD_BIT);
+	}
 
-	/* force HVDCP to 5V */
+	/* Force HVDCP to 5V */
 	smblib_masked_write(chg, USBIN_OPTIONS_1_CFG_REG,
 				HVDCP_AUTONOMOUS_MODE_EN_CFG_BIT, 0);
 	smblib_write(chg, CMD_HVDCP_2_REG, FORCE_5V_BIT);
 
-	/* force enable APSD */
+	/* Force enable APSD */
 	smblib_masked_write(chg, USBIN_OPTIONS_1_CFG_REG,
 				 AUTO_SRC_DETECT_BIT, AUTO_SRC_DETECT_BIT);
 }

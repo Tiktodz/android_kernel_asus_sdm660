@@ -4851,21 +4851,34 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 		}
 		break;
 
-	case DRD_STATE_HOST:
-		if (test_bit(ID, &mdwc->inputs) || mdwc->hc_died) {
-			dev_dbg(mdwc->dev, "id || hc_died\n");
-			dwc3_otg_start_host(mdwc, 0);
-			mdwc->drd_state = DRD_STATE_IDLE;
-			mdwc->vbus_retry_count = 0;
-			mdwc->hc_died = false;
-			work = 1;
-		} else {
-			dev_dbg(mdwc->dev, "still in a_host state. Resuming root hub.\n");
-			dbg_event(0xFF, "XHCIResume", 0);
-			if (dwc)
-				pm_runtime_resume(&dwc->xhci->dev);
-		}
-		break;
+    case DRD_STATE_HOST:
+    	/*
+    	 * Leave host mode when:
+    	 *  - ID is floating again
+    	 *  - host controller died
+    	 *  - external VBUS is now present (charger / PC attached)
+    	 *
+    	 * External VBUS must take priority over host mode on Micro USB
+    	 * designs, otherwise device may remain stuck in OTG after
+    	 * unplugging OTG and plugging charger.
+    	 */
+    	if (test_bit(ID, &mdwc->inputs) ||
+    			mdwc->hc_died ||
+    			test_bit(B_SESS_VLD, &mdwc->inputs)) {
+    		dev_dbg(mdwc->dev, "id || hc_died || bsv\n");
+    		dwc3_otg_start_host(mdwc, 0);
+    		mdwc->drd_state = DRD_STATE_IDLE;
+    		mdwc->vbus_retry_count = 0;
+    		mdwc->hc_died = false;
+    		work = 1;
+    	} else {
+    		dev_dbg(mdwc->dev,
+    			"still in a_host state. Resuming root hub.\n");
+    		dbg_event(0xFF, "XHCIResume", 0);
+    		if (dwc)
+    			pm_runtime_resume(&dwc->xhci->dev);
+    	}
+    	break;
 
 	default:
 		dev_err(mdwc->dev, "%s: invalid otg-state\n", __func__);

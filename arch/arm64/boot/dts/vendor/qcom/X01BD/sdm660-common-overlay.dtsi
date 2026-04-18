@@ -17,30 +17,38 @@
 };
 
 &usb3 {
-    extcon = <&pm660_charger>;
-    vbus_dwc3-supply = <&smb2_vbus>;
-    
-    dwc3@a800000 {
-        maximum-speed = "high-speed";
-        usb-phy = <&qusb_phy0>, <&usb_nop_phy>;
-        dr_mode = "otg";
-        snps,usb3-u1u2-disable;
-        qcom,reset-ep-after-lpm-resume;
-    };
+	status = "okay";
+	dr_mode = "otg";
+	maximum-speed = "high-speed";
+	extcon = <&pm660_charger>;
+	vbus_dwc3-supply = <&smb2_vbus>;
+
+	dwc3@a800000 {
+		status = "okay";
+		dr_mode = "otg";
+		maximum-speed = "high-speed";
+		usb-phy = <&qusb_phy0>, <&usb_nop_phy>;
+
+		snps,usb3-u1u2-disable;
+		snps,dis_u3_susphy_quirk;
+		snps,dis_u2_susphy_quirk;
+		qcom,reset-ep-after-lpm-resume;
+	};
 };
 
 &qusb_phy0 {
+	status = "okay";
 	qcom,tune2-efuse-correction = <(-4)>;
 	qcom,qusb-phy-init-seq = <0xf8 0x80
-				0x83 0x84
-				0x81 0x88
-				0xc7 0x8c
-				0x30 0x08
-				0x79 0x0c
-				0x21 0x10
-				0x14 0x9c
-				0x9f 0x1c
-				0x00 0x18>;
+				  0x83 0x84
+				  0x81 0x88
+				  0xc7 0x8c
+				  0x30 0x08
+				  0x79 0x0c
+				  0x21 0x10
+				  0x14 0x9c
+				  0x9f 0x1c
+				  0x00 0x18>;
 };
 
 &ssphy {
@@ -48,14 +56,14 @@
 };
 
 &qusb_phy1 {
-	qcom,qusb-phy-init-seq = <0xF8 0x80
-				0x83 0x84
-				0x81 0x88
-				0xC7 0x8C
-				0x30 0x08
-				0x79 0x0C
-				0x21 0x10
-				0x14 0x9C
-				0x9F 0x1C
-				0x00 0x18>;
+	qcom,qusb-phy-init-seq = <0xf8 0x80
+				  0x83 0x84
+				  0x81 0x88
+				  0xc7 0x8c
+				  0x30 0x08
+				  0x79 0x0c
+				  0x21 0x10
+				  0x14 0x9c
+				  0x9f 0x1c
+				  0x00 0x18>;
 };
